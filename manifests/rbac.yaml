@@ -2,7 +2,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: kube-auth-proxy-impersonator
-  namespace: default
+  namespace: kube-auth-proxy-system
 rules:
   - apiGroups: [""]
     resources: ["users", "groups", "serviceaccounts"]
@@ -19,13 +19,16 @@ rules:
         "userextras/studentgrade",
       ]
     verbs: ["impersonate"]
+  - apiGroups: ["user-operator.lcpu.dev"]
+    resources: ["users"]
+    verbs: ["get", "create", "list", "watch", "update", "delete"]
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: kube-auth-proxy-impersonator-binding
-  namespace: default
+  namespace: kube-auth-proxy-system
 subjects:
   - kind: ServiceAccount
     name: kube-auth-proxy

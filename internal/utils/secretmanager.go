@@ -100,3 +100,11 @@ func (sm *SecretManager) GetNamespace() string {
 
 	return sm.namespace
 }
+
+func (sm *SecretManager) GetTokenFile() string {
+	return sm.tokenPath
+}
+
+func (sm *SecretManager) GetCAFile() string {
+	return sm.caPath
+}

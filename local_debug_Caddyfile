@@ -1,0 +1,15 @@
+{
+	admin :30731
+}
+
+:30732 {
+	handle /kube/_/ui/* {
+		reverse_proxy http://localhost:5173 {
+			header_up Host {upstream_hostport}
+		}
+	}
+	
+	reverse_proxy https://hpcgame.pku.edu.cn {
+		header_up Host {upstream_hostport}
+	}
+}

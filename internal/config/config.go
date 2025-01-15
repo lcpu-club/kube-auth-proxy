@@ -3,9 +3,10 @@ package config
 import "time"
 
 type ServerConfig struct {
-	Listen   *string
-	Upstream *string
-	Storage  *string
+	Listen     *string
+	Upstream   *string
+	Storage    *string
+	UIDistPath *string
 
 	KubeSecretPath *string
 

@@ -6,6 +6,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
+	"path/filepath"
 	"strings"
 
 	"github.com/lcpu-club/kube-auth-proxy/internal/utils"
@@ -50,9 +52,29 @@ func (s *Server) handleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO: Write reconcile User object logic
+	userInfo, err := s.getOAuthUserInfo(token.AccessToken)
+	if err != nil {
+		log.Println("Failed to get user info:", err)
+		http.Error(w, "Failed to get user info", http.StatusInternalServerError)
+		return
+	}
+	ii := s.userInfoToImpersonateInfo(userInfo)
+	err = s.reconcileUser(ii)
+	if err != nil {
+		log.Println("Failed to reconcile user:", err)
+		http.Error(w, "Failed to reconcile user", http.StatusInternalServerError)
+		return
+	}
 
 	// Redirect to the UI
-	http.Redirect(w, r, fmt.Sprintf("../ui/#/auth/token/%s", token.AccessToken), http.StatusTemporaryRedirect)
+	u, err := url.Parse(*s.conf.OAuthCallback)
+	if err != nil {
+		log.Println("Failed to parse OAuth callback URL:", err)
+		http.Error(w, "Failed to parse OAuth callback URL", http.StatusInternalServerError)
+		return
+	}
+	base := filepath.Join(filepath.Dir(filepath.Dir(u.RequestURI())), "/ui/#/auth/token")
+	http.Redirect(w, r, fmt.Sprintf("%s/%s", base, token.AccessToken), http.StatusTemporaryRedirect)
 	w.Write([]byte(fmt.Sprintf("{\"token\":\"%s\"}", token.AccessToken)))
 }
 

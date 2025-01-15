@@ -1,0 +1,129 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kube-auth-proxy-system
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kube-auth-proxy-impersonator
+  namespace: kube-auth-proxy-system
+rules:
+  - apiGroups: [""]
+    resources: ["users", "groups", "serviceaccounts"]
+    verbs: ["impersonate"]
+  - apiGroups: ["authentication.k8s.io"]
+    resources:
+      [
+        "uids",
+        "userextras/name",
+        "userextras/realname",
+        "userextras/email",
+        "userextras/telephone",
+        "userextras/school",
+        "userextras/studentgrade",
+      ]
+    verbs: ["impersonate"]
+  - apiGroups: ["user-operator.lcpu.dev"]
+    resources: ["users"]
+    verbs: ["get", "create", "list", "watch", "update", "delete"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kube-auth-proxy-impersonator-binding
+  namespace: kube-auth-proxy-system
+subjects:
+  - kind: ServiceAccount
+    name: kube-auth-proxy
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: kube-auth-proxy-impersonator
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kube-auth-proxy
+  namespace: kube-auth-proxy-system
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-auth-proxy
+    control-plane: kube-auth-proxy
+  name: kube-auth-proxy-service
+  namespace: kube-auth-proxy-system
+spec:
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    control-plane: kube-auth-proxy
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-auth-proxy
+    control-plane: kube-auth-proxy
+  name: kube-auth-proxy
+  namespace: kube-auth-proxy-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: kube-auth-proxy
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: kube-auth-proxy
+      labels:
+        control-plane: kube-auth-proxy
+    spec:
+      containers:
+        - args:
+            - -listen=:8080
+            - -storage=redis://
+            - -oauth-callback=https://auth.lcpu.dev/oauth/callback
+          command:
+            - /manager
+          image: crmirror.lcpu.dev/xtlsoft/kube-auth-proxy:v0.1.0
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          name: manager
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: 500m
+              memory: 128Mi
+            requests:
+              cpu: 10m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: kube-auth-proxy
+      terminationGracePeriodSeconds: 10

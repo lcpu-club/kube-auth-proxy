@@ -13,6 +13,9 @@ import (
 	"github.com/lcpu-club/kube-auth-proxy/internal/config"
 	"github.com/lcpu-club/kube-auth-proxy/internal/utils"
 	"golang.org/x/oauth2"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 )
 
 type Server struct {
@@ -27,6 +30,11 @@ type Server struct {
 	oauthConfig *oauth2.Config
 
 	kubeconfigTemplate *template.Template
+
+	kubeClient *dynamic.DynamicClient
+	scheme     *runtime.Scheme
+	userGVR    schema.GroupVersionResource
+	userGVK    schema.GroupVersionKind
 }
 
 func NewServer(conf *config.ServerConfig) *Server {
@@ -44,6 +52,11 @@ func (s *Server) Init() (err error) {
 	}
 
 	s.upstream, err = url.Parse(*s.conf.Upstream)
+	if err != nil {
+		return err
+	}
+
+	err = s.initKube()
 	if err != nil {
 		return err
 	}
@@ -69,7 +82,7 @@ func (s *Server) Init() (err error) {
 	s.initToken()
 	s.mux.Handle("/_/whoami", http.HandlerFunc(s.handleWhoAmI))
 
-	s.mux.Handle("/_/ui/", http.StripPrefix("/_/ui/", http.FileServer(http.Dir("./ui/dist/"))))
+	s.mux.Handle("/_/ui/", http.StripPrefix("/_/ui/", http.FileServer(http.Dir(*s.conf.UIDistPath))))
 	s.mux.HandleFunc("/", s.HandleProxy)
 
 	return nil
