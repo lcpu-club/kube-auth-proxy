@@ -1,13 +1,21 @@
 <script setup lang="ts">
-import { client } from '@/api/api';
-import { ref } from 'vue';
-import { RouterLink } from 'vue-router';
-import { ChevronLeftIcon, EyeIcon, TrashIcon, PlusIcon, EyeSlashIcon } from '@heroicons/vue/24/outline';
+import { client } from "@/api/api";
+import { ref } from "vue";
+import { RouterLink } from "vue-router";
+import {
+  ChevronLeftIcon,
+  EyeIcon,
+  TrashIcon,
+  PlusIcon,
+  EyeSlashIcon,
+} from "@heroicons/vue/24/outline";
 
-const tokens = ref((await (await client.get('/_/tokens')).json()).tokens as string[]);
+const tokens = ref(
+  (await (await client.get("/_/tokens")).json()).tokens as string[]
+);
 
 const add_token = async () => {
-  const token = await (await client.post('/_/tokens', {})).json();
+  const token = await (await client.post("/_/tokens", {})).json();
   tokens.value.push(token.token);
 };
 
@@ -16,8 +24,8 @@ const delete_token = async (token: string) => {
   tokens.value = tokens.value.filter((t) => t !== token);
 };
 
-const kubeconfig_for = ref('');
-const kubeconfig = ref('');
+const kubeconfig_for = ref("");
+const kubeconfig = ref("");
 
 const show_kubeconfig = async (token: string) => {
   const kc = await (await client.get(`/_/tokens/${token}/kubeconfig`)).text();
@@ -27,40 +35,39 @@ const show_kubeconfig = async (token: string) => {
 </script>
 
 <template>
-  <main>
-    <h1 class="flex items-center">
-      <RouterLink :to="{ 'name': 'home' }" class="title-back">
-        <ChevronLeftIcon class="icon" />
-      </RouterLink>
-      <span class="flex-grow">凭据列表</span>
-      <button @click="add_token()" class="icon-button">
-        <PlusIcon class="icon" />
-        <span>添加凭据</span>
-      </button>
-    </h1>
-    <div class="token-wrapper" v-for="token in tokens" :key="token">
-      <pre class="token-cell m-0">{{ token }}</pre>
-      <button @click="show_kubeconfig(token)" class="icon-button">
-        <EyeIcon class="icon" />
-        <span>显示 Kubeconfig</span>
-      </button>
-      <button @click="delete_token(token)" class="icon-button">
-        <TrashIcon class="icon" />
-        <span>删除</span>
+  <h1 class="flex items-center">
+    <span class="flex-grow">令牌管理</span>
+    <button @click="add_token()" class="icon-button">
+      <PlusIcon class="icon" />
+      <span>添加令牌</span>
+    </button>
+  </h1>
+  <div class="token-wrapper" v-for="token in tokens" :key="token">
+    <pre class="token-cell m-0">{{ token }}</pre>
+    <button @click="show_kubeconfig(token)" class="icon-button">
+      <EyeIcon class="icon" />
+      <span>显示 Kubeconfig</span>
+    </button>
+    <button @click="delete_token(token)" class="icon-button">
+      <TrashIcon class="icon" />
+      <span>删除</span>
+    </button>
+  </div>
+  <div v-if="kubeconfig" class="m-t-2">
+    <div class="flex gap-2 items-center text-no-wrap">
+      <span class="font-bold">Kubeconfig for</span>
+      <pre class="inline flex-grow flex-shrink overflow-auto font-bold">{{
+        kubeconfig_for
+      }}</pre>
+      <button @click="kubeconfig = ''" class="icon-button">
+        <EyeSlashIcon class="icon" />
+        <span>隐藏</span>
       </button>
     </div>
-    <div v-if="kubeconfig" class="m-t-2">
-      <div class="flex gap-2 items-center text-no-wrap">
-        <span class="font-bold">Kubeconfig for</span>
-        <pre class="inline flex-grow flex-shrink overflow-auto font-bold">{{ kubeconfig_for }}</pre>
-        <button @click="kubeconfig = '';" class="icon-button">
-          <EyeSlashIcon class="icon" />
-          <span>隐藏</span>
-        </button>
-      </div>
-      <textarea class="m-t-2" rows="16" cols="80" disabled>{{ kubeconfig }}</textarea>
-    </div>
-  </main>
+    <textarea class="m-t-2" rows="16" cols="80" disabled>{{
+      kubeconfig
+    }}</textarea>
+  </div>
 </template>
 
 <style scoped>
@@ -80,11 +87,6 @@ const show_kubeconfig = async (token: string) => {
   gap: 0.5rem;
 }
 
-main {
-  padding: 3rem;
-  box-sizing: border-box;
-}
-
 .col {
   flex-direction: column;
 }
@@ -96,7 +98,7 @@ main {
 .icon {
   width: 1em;
   height: 1em;
-  margin-right: .3em;
+  margin-right: 0.3em;
 }
 
 .title-back {
@@ -104,12 +106,6 @@ main {
   display: flex;
   align-items: center;
   color: unset;
-}
-
-@media screen and (max-width: 768px) {
-  main {
-    padding: 1rem;
-  }
 }
 
 button {
