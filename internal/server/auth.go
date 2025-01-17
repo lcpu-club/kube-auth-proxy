@@ -19,6 +19,9 @@ func (s *Server) authenticate(req *http.Request) (*ImpersonateInfo, error) {
 		if strings.ToLower(req.Header.Get("Upgrade")) == "websocket" {
 			// Read the token from the query string
 			token = req.URL.Query().Get("auth")
+			if !strings.HasPrefix(token, "Bearer ") {
+				token = "Bearer " + token
+			}
 		}
 
 		if token == "" {
