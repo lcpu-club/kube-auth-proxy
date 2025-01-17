@@ -1,15 +1,28 @@
 {
-    admin :30731
+	admin :30731
 }
 
 :30732 {
-    handle /kube/_/ui/* {
-        reverse_proxy http://localhost:5173 {
-            header_up Host {upstream_hostport}
-        }
-    }
-    
-    reverse_proxy https://hpcgame.pku.edu.cn {
-        header_up Host {upstream_hostport}
-    }
+
+    log
+
+	handle /kube/_/ui/* {
+		reverse_proxy http://localhost:5173 {
+			header_up Host {upstream_hostport}
+		}
+	}
+
+	@ws {
+		header Connection *Upgrade*
+		header Upgrade websocket
+	}
+
+	reverse_proxy @ws https://hpcgame.pku.edu.cn {
+		header_up Host {upstream_hostport}
+		header_up Authorization "Bearer {query.auth}"
+	}
+
+	reverse_proxy https://hpcgame.pku.edu.cn {
+		header_up Host {upstream_hostport}
+	}
 }

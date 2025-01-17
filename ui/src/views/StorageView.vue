@@ -168,7 +168,6 @@ const handleDelete = async (pvcName) => {
 
 // 创建 PVC
 const handleCreate = async ({ validateResult }) => {
-  console.log(validateResult);
   if (validateResult !== true) {
     return;
   }

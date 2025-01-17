@@ -109,7 +109,7 @@
 
         <!-- 参数 -->
         <t-form-item label="参数" name="args">
-          <t-input v-model="createFormData.args" placeholder="请输入参数" />
+          <t-textarea v-model="createFormData.args" placeholder="请输入参数（以换行分割）" />
         </t-form-item>
         <t-form-item>
           <t-button theme="primary" type="submit">创建</t-button>
@@ -250,7 +250,10 @@ const handleCreate = async ({ validateResult }) => {
             name: createFormData.value.name,
             image: createFormData.value.image,
             command: createFormData.value.command.split(" "),
-            args: createFormData.value.args.split(" "),
+            args: createFormData.value.args
+              .split("\n")
+              .map((x) => x.trim())
+              .filter((x) => x),
           },
         ],
       },
@@ -329,6 +332,10 @@ const execWebTerm = (podName, container) => {
 };
 
 const handleSelectContainer = (podInfo) => {
+  if (podInfo.status.phase !== "Running") {
+    MessagePlugin.error("Pod 不在 Running 状态");
+    return;
+  }
   selectedPodContianer.value = "";
   selectedPod.value = podInfo.metadata.name;
   currentPodContainers.value = podInfo.spec.containers.map(
