@@ -36,7 +36,7 @@
       <template #operation="{ row }">
         <t-button
           variant="text"
-          @click="handleViewData(row.metadata.name)"
+          @click="handleViewData(row)"
           shape="square"
           title="显示数据"
         >
@@ -104,6 +104,14 @@
     </t-dialog>
 
     <!--展示 Secret 数据的对话框-->
+    <t-dialog
+      v-model:visible="viewDataDialogVisible"
+      header="Secret 数据（未经 Base 64 解码）"
+      @confirm="viewDataDialogVisible = false"
+      :cancel-btn="null"
+    >
+      {{ viewData }}
+    </t-dialog>
   </div>
 </template>
 
@@ -114,9 +122,12 @@ import { client } from "@/api/api";
 
 // Secret 数据
 const secrets = ref([]);
+const viewData = ref("");
 
 // 创建 Secret 的对话框状态
 const createDialogVisible = ref(false);
+
+const viewDataDialogVisible = ref(false);
 
 // 创建 Secret 的表单数据
 const createFormData = ref({
@@ -181,11 +192,12 @@ const handleDelete = async (secretName) => {
 };
 
 // 创建 Secret
-const handleCreate = async () => {
+const handleCreate = async ({ validateResult }) => {
+  if (validateResult !== true) return;
   try {
     const data = createFormData.value.data.split("\n").reduce((acc, line) => {
       const [key, value] = line.split("=");
-      if (key && value) acc[key.trim()] = value.trim();
+      if (key && value) acc[key.trim()] = btoa(value.trim());
       return acc;
     }, {});
 
@@ -200,10 +212,15 @@ const handleCreate = async () => {
       data,
     };
 
-    await client.post(`${apiRoot.value}/secrets`, secretYAML);
-    MessagePlugin.success("Secret 创建成功");
-    closeCreateDialog(); // 关闭对话框
-    fetchSecrets(); // 刷新列表
+    const response = await client.post(`${apiRoot.value}/secrets`, secretYAML);
+    if (response.status > 299) {
+      MessagePlugin.error("创建 Secret 失败");
+      MessagePlugin.error((await response.json()).message);
+    } else {
+      MessagePlugin.success("Secret 创建成功");
+      closeCreateDialog(); // 关闭对话框
+      fetchSecrets(); // 刷新列表
+    }
   } catch (error) {
     console.error("创建 Secret 失败:", error);
     MessagePlugin.error("创建 Secret 失败");
@@ -223,6 +240,11 @@ const closeCreateDialog = () => {
     type: "Opaque",
     data: "",
   };
+};
+
+const handleViewData = (secret) => {
+  viewData.value = secret.data;
+  viewDataDialogVisible.value = true;
 };
 
 // 组件挂载时获取用户信息和 Secret 列表
