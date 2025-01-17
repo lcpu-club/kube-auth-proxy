@@ -1,21 +1,38 @@
 import { getToken } from "./token";
 
 async function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 class Client {
   private readonly baseUrl: string;
 
+  public username: string | null = null;
+
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
   }
 
-  async req(path: string, opts: RequestInit): Promise<Response> {
-    const url = this.baseUrl + path;
+  async req(
+    path: string,
+    opts: RequestInit,
+    ignoreNullUsername = false
+  ): Promise<Response> {
+    if (!ignoreNullUsername) {
+      this.ensureUsername();
+    }
+
+    const url = this.username
+      ? (this.baseUrl + path).replace("{!NAMESPACE}", `u-${this.username}`)
+      : this.baseUrl + path;
+
+    if (opts.body && this.username && typeof opts.body === "string") {
+      opts.body = opts.body.replace("{!NAMESPACE}", `u-${this.username}`);
+    }
+
     opts.headers = {
       ...opts.headers,
-      'Authorization': 'Bearer ' + getToken()
+      Authorization: "Bearer " + getToken(),
     };
     try {
       let resp = await fetch(url, opts);
@@ -23,62 +40,76 @@ class Client {
     } catch (e) {
       console.error(e);
       // TODO: Better handling
-      alert('Failed to fetch ' + url);
+      alert("Failed to fetch " + url);
       throw e;
     }
   }
 
   async get(path: string): Promise<Response> {
     return await this.req(path, {
-      method: 'GET'
+      method: "GET",
     });
   }
 
   async post(path: string, body: any): Promise<Response> {
     return await this.req(path, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(body),
       headers: {
-        'Content-Type': 'application/json'
-      }
+        "Content-Type": "application/json",
+      },
     });
   }
 
   async put(path: string, body: any): Promise<Response> {
     return await this.req(path, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify(body),
       headers: {
-        'Content-Type': 'application/json'
-      }
+        "Content-Type": "application/json",
+      },
     });
   }
 
   async patch(path: string, body: any): Promise<Response> {
     return await this.req(path, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(body),
       headers: {
-        'Content-Type': 'application/json'
-      }
+        "Content-Type": "application/json",
+      },
     });
   }
 
   async delete(path: string): Promise<Response> {
     return await this.req(path, {
-      method: 'DELETE'
+      method: "DELETE",
     });
   }
 
   async deleteWithBody(path: string, body: any): Promise<Response> {
     return await this.req(path, {
-      method: 'DELETE',
+      method: "DELETE",
       body: JSON.stringify(body),
       headers: {
-        'Content-Type': 'application/json'
-      }
+        "Content-Type": "application/json",
+      },
     });
+  }
+
+  async ensureUsername() {
+    if (this.username) return;
+    const userInfo = await (
+      await this.req(
+        "/_/whoami",
+        {
+          method: "GET",
+        },
+        true
+      )
+    ).json();
+    this.username = userInfo.username;
   }
 }
 
-export const client = new Client('../..');
+export const client = new Client("../..");

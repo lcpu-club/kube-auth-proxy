@@ -194,7 +194,7 @@ const handleCreate = async () => {
       kind: "Secret",
       metadata: {
         name: createFormData.value.name,
-        namespace: `u-${username.value}`, // 自动使用 u-${username} 作为 namespace
+        namespace: "{!NAMESPACE}", // 自动使用 u-${username} 作为 namespace
       },
       type: createFormData.value.type,
       data,

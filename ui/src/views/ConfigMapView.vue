@@ -127,25 +127,12 @@ const columns = [
 ];
 
 // 用户信息和 API 根路径
-let apiRoot = ref("");
-let username = ref("");
-
-// 获取用户信息并设置 API 根路径
-const fetchUserInfo = async () => {
-  try {
-    const userInfo = await (await client.get("/_/whoami")).json();
-    apiRoot.value = `/api/v1/namespaces/u-${userInfo.username}`;
-    username.value = userInfo.username;
-  } catch (error) {
-    console.error("获取用户信息失败:", error);
-    MessagePlugin.error("获取用户信息失败");
-  }
-};
+let apiRoot = "/api/v1/namespaces/{!NAMESPACE}";
 
 // 获取 ConfigMap 列表
 const fetchConfigMaps = async () => {
   try {
-    const response = await client.get(`${apiRoot.value}/configmaps`);
+    const response = await client.get(`${apiRoot}/configmaps`);
     configMaps.value = (await response.json()).items;
     MessagePlugin.success("ConfigMap 列表刷新成功");
   } catch (error) {
@@ -157,7 +144,7 @@ const fetchConfigMaps = async () => {
 // 删除 ConfigMap
 const handleDelete = async (configMapName) => {
   try {
-    await client.delete(`${apiRoot.value}/configmaps/${configMapName}`);
+    await client.delete(`${apiRoot}/configmaps/${configMapName}`);
     MessagePlugin.success(`ConfigMap ${configMapName} 删除成功`);
     fetchConfigMaps(); // 刷新列表
   } catch (error) {
@@ -180,12 +167,12 @@ const handleCreate = async () => {
       kind: "ConfigMap",
       metadata: {
         name: createFormData.value.name,
-        namespace: `u-${username.value}`,
+        namespace: "{!NAMESPACE}",
       },
       data,
     };
 
-    await client.post(`${apiRoot.value}/configmaps`, configMapYAML);
+    await client.post(`${apiRoot}/configmaps`, configMapYAML);
     MessagePlugin.success("ConfigMap 创建成功");
     closeCreateDialog(); // 关闭对话框
     fetchConfigMaps(); // 刷新列表
@@ -216,7 +203,7 @@ const closeCreateDialog = () => {
 
 // 组件挂载时获取用户信息和 ConfigMap 列表
 onMounted(async () => {
-  await fetchUserInfo();
+  await client.ensureUsername();
   fetchConfigMaps();
 });
 </script>
