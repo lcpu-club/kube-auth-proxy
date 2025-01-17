@@ -15,7 +15,15 @@ var anonymousImpersonateInfo = &ImpersonateInfo{
 func (s *Server) authenticate(req *http.Request) (*ImpersonateInfo, error) {
 	token := req.Header.Get("Authorization")
 	if token == "" {
-		return anonymousImpersonateInfo, nil
+		// Check if the request is WebSocket
+		if strings.ToLower(req.Header.Get("Upgrade")) == "websocket" {
+			// Read the token from the query string
+			token = req.URL.Query().Get("auth")
+		}
+
+		if token == "" {
+			return anonymousImpersonateInfo, nil
+		}
 	}
 
 	if !strings.HasPrefix(token, "Bearer ") {
