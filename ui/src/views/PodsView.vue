@@ -57,10 +57,10 @@
         <t-button
           variant="text"
           shape="square"
-          @click="handleSelectContainer(row)"
-          title="网页终端"
+          @click="handleMoreTools(row)"
+          title="更多工具"
         >
-          <t-icon name="terminal-rectangle-1" />
+          <t-icon name="more" />
         </t-button>
         <t-button
           variant="text"
@@ -109,14 +109,59 @@
 
         <!-- 参数 -->
         <t-form-item label="参数" name="args">
-          <t-textarea v-model="createFormData.args" placeholder="请输入参数（以换行分割）" />
+          <t-textarea
+            v-model="createFormData.args"
+            placeholder="请输入参数（以换行分割）"
+          />
         </t-form-item>
+
+        <!-- PVC 选择 -->
+        <t-form-item label="挂载 PVC" name="pvc">
+          <t-select
+            v-model="createFormData.pvc"
+            placeholder="请选择 PVC"
+            clearable
+          >
+            <t-option
+              v-for="pvc in pvcs"
+              :key="pvc.metadata.name"
+              :value="pvc.metadata.name"
+              :label="pvc.metadata.name"
+            />
+          </t-select>
+        </t-form-item>
+
+        <!-- 挂载路径 -->
+        <t-form-item label="挂载路径" name="mountPath">
+          <t-select
+            v-model="createFormData.mountPath"
+            placeholder="请选择挂载路径"
+            creatable
+            filterable
+          >
+            <t-option value="/root" label="/root" />
+            <t-option value="/data" label="/data" />
+            <t-option value="/shared" label="/shared" />
+          </t-select>
+        </t-form-item>
+
+        <!-- 注解：LXCFS -->
+        <t-form-item label="启用 LXCFS" name="lxcfsEnabled">
+          <t-switch v-model="createFormData.lxcfsEnabled" />
+        </t-form-item>
+
+        <!-- 注解：SSH Operator -->
+        <t-form-item label="启用 SSH 服务器" name="sshEnabled">
+          <t-switch v-model="createFormData.sshEnabled" />
+        </t-form-item>
+
         <t-form-item>
           <t-button theme="primary" type="submit">创建</t-button>
         </t-form-item>
       </t-form>
     </t-dialog>
 
+    <!-- 查看日志的对话框 -->
     <t-dialog
       v-model:visible="logDialogVisible"
       header="查看日志"
@@ -126,16 +171,37 @@
       <pre>{{ logContent }}</pre>
     </t-dialog>
 
-    <!--选择容器-->
+    <!-- 更多操作对话框 -->
     <t-dialog
       v-model:visible="selectContainerDialogVisible"
-      :header="`选择容器 - ${selectedPod}`"
-      :confirm-btn="{ disabled: !selectedPodContianer }"
-      @confirm="
-        selectContainerDialogVisible = false;
-        execWebTerm(selectedPod, selectedPodContianer);
-      "
+      :header="`更多操作 - ${selectedPod}`"
     >
+      <t-space style="margin-bottom: 1em" size="small">
+        <p>VSCode Server 状态：{{ selectedPodCodeStatus }}</p>
+        <t-button
+          theme="primary"
+          :disabled="attachCodeDisabled"
+          @click="attachCode(selectedPod)"
+          :loading="selectedPodCodeAttaching"
+        >
+          启动
+        </t-button>
+        <t-button
+          :disabled="detachCodeDisabled"
+          @click="openCode(selectedPod)"
+          :loading="selectedPodCodeDetaching"
+        >
+          打开
+        </t-button>
+        <t-button
+          theme="danger"
+          :disabled="detachCodeDisabled"
+          :loading="selectedPodCodeDetaching"
+          @click="detachCode(selectedPod)"
+        >
+          关闭
+        </t-button>
+      </t-space>
       <t-select v-model:value="selectedPodContianer" placeholder="请选择容器">
         <t-option
           v-for="container in currentPodContainers"
@@ -145,17 +211,28 @@
           {{ container }}
         </t-option>
       </t-select>
+      <template #confirmBtn>
+        <t-button
+          theme="primary"
+          :disabled="!selectedPodContianer"
+          @click="
+            selectContainerDialogVisible = false;
+            execWebTerm(selectedPod, selectedPodContianer);
+          "
+          >启动网页终端</t-button
+        >
+      </template>
     </t-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { MessagePlugin } from "tdesign-vue-next";
 import { client } from "@/api/api";
 import { useRouter } from "vue-router";
 
-let apiRoot = "";
+let apiRoot = `/api/v1/namespaces/{!NAMESPACE}`;
 let username = "";
 
 const router = useRouter();
@@ -163,9 +240,30 @@ const router = useRouter();
 // Pods 数据
 const pods = ref([]);
 
+// PVC 数据
+const pvcs = ref([]);
+
 const currentPodContainers = ref([]);
 const selectedPod = ref("");
 const selectedPodContianer = ref("");
+const selectedPodCodeRunning = ref(false);
+const selectedPodCodeStatusLoading = ref(false);
+const selectedPodCodeStatus = computed(() => {
+  if (selectedPodCodeStatusLoading.value) {
+    return "loading...";
+  }
+  return selectedPodCodeRunning.value ? "running" : "stopped";
+});
+const selectedPodCodeAttaching = ref(false);
+const selectedPodCodeDetaching = ref(false);
+
+const attachCodeDisabled = computed(() => {
+  return selectedPodCodeStatusLoading.value || selectedPodCodeRunning.value;
+});
+
+const detachCodeDisabled = computed(() => {
+  return selectedPodCodeStatusLoading.value || !selectedPodCodeRunning.value;
+});
 
 // 查看日志的内容
 const logContent = ref("");
@@ -185,6 +283,10 @@ const createFormData = ref({
   image: "",
   command: "",
   args: "",
+  pvc: "",
+  mountPath: "/root",
+  lxcfsEnabled: false,
+  sshEnabled: false,
 });
 
 // 表单验证规则
@@ -206,7 +308,6 @@ const columns = [
 // 获取 Pods 数据
 const fetchPods = async () => {
   try {
-    // 模拟 API 调用
     const response = await client.get(`${apiRoot}/pods`);
     const data = await response.json();
     pods.value = data.items;
@@ -217,10 +318,21 @@ const fetchPods = async () => {
   }
 };
 
+// 获取 PVC 数据
+const fetchPVCs = async () => {
+  try {
+    const response = await client.get(`${apiRoot}/persistentvolumeclaims`);
+    const data = await response.json();
+    pvcs.value = data.items;
+  } catch (error) {
+    console.error("获取 PVC 失败:", error);
+    MessagePlugin.error("获取 PVC 失败");
+  }
+};
+
 // 删除 Pod
 const handleDelete = async (podName) => {
   try {
-    // 模拟 API 调用
     await client.delete(`${apiRoot}/pods/${podName}`);
     MessagePlugin.success(`Pod ${podName} 删除成功`);
     fetchPods(); // 刷新列表
@@ -242,7 +354,15 @@ const handleCreate = async ({ validateResult }) => {
       kind: "Pod",
       metadata: {
         name: createFormData.value.name,
-        namespace: `u-${username}`,
+        namespace: "{!NAMESPACE}",
+        annotations: {
+          "lxcfs.lcpu.dev/inject": createFormData.value.lxcfsEnabled
+            ? "enabled"
+            : "disabled",
+          "ssh-operator.lcpu.dev/inject": createFormData.value.sshEnabled
+            ? "enabled"
+            : "disabled",
+        },
       },
       spec: {
         containers: [
@@ -254,10 +374,26 @@ const handleCreate = async ({ validateResult }) => {
               .split("\n")
               .map((x) => x.trim())
               .filter((x) => x),
+            volumeMounts: [],
           },
         ],
+        volumes: [],
       },
     };
+
+    // 添加 PVC 挂载
+    if (createFormData.value.pvc) {
+      podYAML.spec.containers[0].volumeMounts.push({
+        name: "pvc-volume",
+        mountPath: createFormData.value.mountPath,
+      });
+      podYAML.spec.volumes.push({
+        name: "pvc-volume",
+        persistentVolumeClaim: {
+          claimName: createFormData.value.pvc,
+        },
+      });
+    }
 
     // 模拟 API 调用
     const response = await client.post(`${apiRoot}/pods`, podYAML);
@@ -277,7 +413,8 @@ const handleCreate = async ({ validateResult }) => {
 };
 
 // 显示创建 Pod 的对话框
-const showCreateDialog = () => {
+const showCreateDialog = async () => {
+  await fetchPVCs(); // 获取 PVC 列表
   createDialogVisible.value = true;
 };
 
@@ -289,6 +426,10 @@ const closeCreateDialog = () => {
     image: "",
     command: "",
     args: "",
+    pvc: "",
+    mountPath: "/root",
+    lxcfsEnabled: false,
+    sshEnabled: false,
   };
 };
 
@@ -313,7 +454,6 @@ const getStatusTheme = (status) => {
 
 const showLog = async (podName) => {
   try {
-    // 模拟 API 调用
     const response = await client.get(`${apiRoot}/pods/${podName}/log`);
     logContent.value = await response.text();
     logDialogVisible.value = true;
@@ -331,24 +471,81 @@ const execWebTerm = (podName, container) => {
   window.open(href, "_blank");
 };
 
-const handleSelectContainer = (podInfo) => {
+const fetchPodCodeStatus = async (podName) => {
+  return (await client.get(`/_/code-server/{!NAMESPACE}/${podName}`)).json();
+};
+
+const attachCode = async (podName) => {
+  try {
+    selectedPodCodeAttaching.value = true;
+    const response = (
+      await client.post(`/_/code-server/{!NAMESPACE}/${podName}`)
+    ).json();
+    if (response.status === "success") {
+      window.open(
+        `/kube/_/code-server/u-${username}/${podName}/proxy`,
+        "_blank"
+      );
+      selectedPodCodeRunning.value = true;
+    } else {
+      MessagePlugin.error("启动 Code Server 失败");
+      MessagePlugin.error(response.error);
+    }
+    selectedPodCodeAttaching.value = false;
+  } catch (error) {
+    console.error("启动 Code Server 失败:", error);
+    MessagePlugin.error("启动 Code Server 失败");
+  }
+};
+
+const detachCode = async (podName) => {
+  try {
+    selectedPodCodeDetaching.value = true;
+    const response = (
+      await client.delete(`/_/code-server/{!NAMESPACE}/${podName}`)
+    ).json();
+    if (response.status === "success") {
+      MessagePlugin.success("关闭 Code Server 成功");
+      selectedPodCodeRunning.value = false;
+    } else {
+      MessagePlugin.error("关闭 Code Server 失败");
+      MessagePlugin.error(response.error);
+    }
+    selectedPodCodeDetaching.value = false;
+  } catch (error) {
+    console.error("关闭 Code Server 失败:", error);
+    MessagePlugin.error("关闭 Code Server 失败");
+  }
+};
+
+const openCode = (podName) => {
+  window.open(`/kube/_/code-server/u-${username}/${podName}/proxy`, "_blank");
+};
+
+const handleMoreTools = async (podInfo) => {
   if (podInfo.status.phase !== "Running") {
     MessagePlugin.error("Pod 不在 Running 状态");
     return;
   }
-  selectedPodContianer.value = "";
+  // defaults to the first container
+  selectedPodContianer.value = podInfo.metadata.name;
   selectedPod.value = podInfo.metadata.name;
   currentPodContainers.value = podInfo.spec.containers.map(
     (container) => container.name
   );
+  selectedPodCodeStatusLoading.value = true;
   selectContainerDialogVisible.value = true;
+  const running = await fetchPodCodeStatus(podInfo.metadata.name);
+  selectedPodCodeStatusLoading.value = false;
+  // TODO: read from backend
+  selectedPodCodeRunning.value = false;
 };
 
 // 组件挂载时获取数据
 onMounted(async () => {
-  const userInfo = await (await client.get("/_/whoami")).json();
-  apiRoot = `/api/v1/namespaces/u-${userInfo.username}`;
-  username = userInfo.username;
+  await client.ensureUsername();
+  // opening new window will require this
+  username = client.username;
   fetchPods();
 });
 </script>

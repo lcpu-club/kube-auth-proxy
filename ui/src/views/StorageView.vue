@@ -108,7 +108,7 @@ import { Footer, MessagePlugin } from "tdesign-vue-next";
 import { client } from "@/api/api";
 import { FolderPlusIcon } from "@heroicons/vue/24/outline";
 
-let apiRoot = "";
+let apiRoot = "/api/v1/namespaces/{!NAMESPACE}";
 let namespace = "";
 
 // PVC 数据
@@ -177,7 +177,7 @@ const handleCreate = async ({ validateResult }) => {
       kind: "PersistentVolumeClaim",
       metadata: {
         name: createFormData.value.name,
-        namespace,
+        namespace: "{!NAMESPACE}"
       },
       spec: {
         accessModes: [createFormData.value.accessMode],
@@ -232,9 +232,7 @@ const getStatusTheme = (phase) => {
 
 // 组件挂载时获取数据
 onMounted(async () => {
-  const userInfo = await (await client.get("/_/whoami")).json();
-  apiRoot = `/api/v1/namespaces/u-${userInfo.username}`;
-  namespace = `u-${userInfo.username}`;
+  await client.ensureUsername();
   fetchPVCs();
 });
 </script>

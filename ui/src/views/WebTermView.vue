@@ -58,6 +58,9 @@ onMounted(async () => {
   const wsURL = `${apiServer}/api/v1/namespaces/${namespace}/pods/${podName}/exec?command=${command}&container=${container}&stdin=true&stdout=true&stderr=true&tty=true&auth=${token.value}`;
   // 创建 WebSocket 连接
   ws = new WebSocket(wsURL, "v4.channel.k8s.io");
+  ws.onclose = () => {
+    xterm.write("\n\nWebSocket closed\n");
+  };
   window.addEventListener("resize", windowResizeHandler);
   xterm.open(terminal.value);
   xterm.loadAddon(fitAddon);
@@ -73,7 +76,6 @@ onDeactivated(() => {
   ws.close();
   window.removeEventListener("resize", windowResizeHandler);
 });
-
 </script>
 
 <style scoped>

@@ -69,6 +69,22 @@
           />
         </t-form-item>
 
+        <!-- LocalQueue 选择 -->
+        <t-form-item label="LocalQueue" name="localQueue">
+          <t-select
+            v-model="createFormData.localQueue"
+            placeholder="请选择 LocalQueue"
+            clearable
+          >
+            <t-option
+              v-for="queue in localQueues"
+              :key="queue.metadata.name"
+              :value="queue.metadata.name"
+              :label="queue.metadata.name"
+            />
+          </t-select>
+        </t-form-item>
+
         <!-- 容器镜像 -->
         <t-form-item label="容器镜像" name="image">
           <t-input
@@ -97,6 +113,16 @@
           <t-input-number v-model="createFormData.backoffLimit" :min="0" />
         </t-form-item>
 
+        <!-- lxcfs.lcpu.dev/inject 开关 -->
+        <t-form-item label="启用 lxcfs" name="lxcfsEnabled">
+          <t-switch v-model="createFormData.lxcfsEnabled" />
+        </t-form-item>
+
+        <!-- ssh-operator.lcpu.dev/inject 开关 -->
+        <t-form-item label="启用 SSH 服务器" name="sshEnabled">
+          <t-switch v-model="createFormData.sshEnabled" />
+        </t-form-item>
+
         <t-form-item>
           <t-space size="small">
             <t-button theme="default" @click="closeCreateDialog">取消</t-button>
@@ -113,11 +139,11 @@ import { ref, onMounted } from "vue";
 import { MessagePlugin } from "tdesign-vue-next";
 import { client } from "@/api/api";
 
-let apiRoot = "";
-let username = "";
+let apiRoot = "/apis/batch/v1/namespaces/{!NAMESPACE}";
 
 // Jobs 数据
 const jobs = ref([]);
+const localQueues = ref([]);
 
 // 创建 Job 的对话框状态
 const createDialogVisible = ref(false);
@@ -125,11 +151,14 @@ const createDialogVisible = ref(false);
 // 创建 Job 的表单数据
 const createFormData = ref({
   name: "",
+  localQueue: "",
   image: "",
   command: "",
   args: "",
   parallelism: 1,
   backoffLimit: 6,
+  lxcfsEnabled: false,
+  sshEnabled: false,
 });
 
 // 表单验证规则
@@ -145,6 +174,20 @@ const columns = [
   { colKey: "creationTimestamp", title: "创建时间", cell: "creationTimestamp" },
   { colKey: "operation", title: "操作", cell: "operation" },
 ];
+
+const fetchLocalQueues = async () => {
+  try {
+    const response = await client.get(
+      "/apis/kueue.x-k8s.io/v1beta1/namespaces/{!NAMESPACE}/localqueues"
+    );
+    const data = await response.json();
+    localQueues.value = data.items;
+    MessagePlugin.success("Local Queues 列表刷新成功");
+  } catch (error) {
+    console.error("获取 Local Queues 失败:", error);
+    MessagePlugin.error("获取 Local Queues 失败");
+  }
+};
 
 // 获取 Jobs 数据
 const fetchJobs = async () => {
@@ -187,7 +230,20 @@ const handleCreate = async ({ validateResult }) => {
       kind: "Job",
       metadata: {
         name: createFormData.value.name,
-        namespace: `u-${username}`,
+        namespace: "{!NAMESPACE}",
+        annotations: {
+          "lxcfs.lcpu.dev/inject": createFormData.value.lxcfsEnabled
+            ? "enabled"
+            : "disabled",
+          "ssh-operator.lcpu.dev/inject": createFormData.value.sshEnabled
+            ? "enabled"
+            : "disabled",
+        },
+        labels: createFormData.value.localQueue
+          ? {
+              "kueue.x-k8s.io/queue-name": createFormData.value.localQueue,
+            }
+          : {},
       },
       spec: {
         template: {
@@ -226,6 +282,7 @@ const handleCreate = async ({ validateResult }) => {
 // 显示创建 Job 的对话框
 const showCreateDialog = () => {
   createDialogVisible.value = true;
+  fetchLocalQueues(); // 获取 LocalQueues 列表
 };
 
 // 关闭创建 Job 的对话框
@@ -233,11 +290,14 @@ const closeCreateDialog = () => {
   createDialogVisible.value = false;
   createFormData.value = {
     name: "",
+    localQueue: "",
     image: "",
     command: "",
     args: "",
     parallelism: 1,
     backoffLimit: 6,
+    lxcfsEnabled: false,
+    sshEnabled: false,
   };
 };
 
@@ -256,9 +316,7 @@ const getStatusTheme = (status) => {
 
 // 组件挂载时获取数据
 onMounted(async () => {
-  const userInfo = await (await client.get("/_/whoami")).json();
-  apiRoot = `/apis/batch/v1/namespaces/u-${userInfo.username}`;
-  username = userInfo.username;
+  await client.ensureUsername();
   fetchJobs();
 });
 </script>
