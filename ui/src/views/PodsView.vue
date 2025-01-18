@@ -633,7 +633,9 @@ const detachCode = async (podName) => {
   try {
     selectedPodCodeDetaching.value = true;
     const response = (
-      await client.delete(`/_/code-server/{!NAMESPACE}/${podName}`)
+      await client.deleteWithBody(`/_/code-server/{!NAMESPACE}/${podName}`, {
+        gracePeriodSeconds: 0,
+      })
     ).json();
     if (response.status === "success") {
       MessagePlugin.success("关闭 Code Server 成功");
