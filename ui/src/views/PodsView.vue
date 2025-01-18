@@ -176,7 +176,7 @@
       v-model:visible="selectContainerDialogVisible"
       :header="`更多操作 - ${selectedPod}`"
     >
-      <t-space style="margin-bottom: 1em" size="small">
+      <!-- <t-space style="margin-bottom: 1em" size="small">
         <p>VSCode Server 状态：{{ selectedPodCodeStatus }}</p>
         <t-button
           theme="primary"
@@ -201,7 +201,7 @@
         >
           关闭
         </t-button>
-      </t-space>
+      </t-space> -->
       <t-select v-model:value="selectedPodContianer" placeholder="请选择容器">
         <t-option
           v-for="container in currentPodContainers"
@@ -536,12 +536,12 @@ const handleMoreTools = async (podInfo) => {
   currentPodContainers.value = podInfo.spec.containers.map(
     (container) => container.name
   );
-  selectedPodCodeStatusLoading.value = true;
+  // selectedPodCodeStatusLoading.value = true;
   selectContainerDialogVisible.value = true;
-  const running = await fetchPodCodeStatus(podInfo.metadata.name);
-  selectedPodCodeStatusLoading.value = false;
-  // TODO: read from backend
-  selectedPodCodeRunning.value = false;
+  // const running = await fetchPodCodeStatus(podInfo.metadata.name);
+  // selectedPodCodeStatusLoading.value = false;
+  // // TODO: read from backend
+  // selectedPodCodeRunning.value = false;
 };
 
 // 组件挂载时获取数据

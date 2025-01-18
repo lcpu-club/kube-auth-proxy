@@ -36,10 +36,10 @@ const changeHandler = (active: string) => {
           <t-submenu title="配置管理">
             <t-menu-item value="/config/configmap/">ConfigMap</t-menu-item>
             <t-menu-item value="/config/secret/">Secret</t-menu-item>
-            <t-menu-item value="/config/sshauthkey/"
+            <!-- <t-menu-item value="/config/sshauthkey/"
               >SSHAuthorizedKeys</t-menu-item
             >
-            <t-menu-item value="/config/sshkeypair/">SSHKeyPair</t-menu-item>
+            <t-menu-item value="/config/sshkeypair/">SSHKeyPair</t-menu-item> -->
           </t-submenu>
         </t-menu>
       </div>
