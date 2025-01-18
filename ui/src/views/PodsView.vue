@@ -506,16 +506,16 @@ const handleCreate = async ({ validateResult }) => {
     console.log(podYAML.spec);
 
     if (createFormData.value.cpuRequest) {
-      podYAML.spec.template.spec.containers[0].resources.requests.cpu =
+      podYAML.spec.containers[0].resources.requests.cpu =
         createFormData.value.cpuRequest;
-      podYAML.spec.template.spec.containers[0].resources.limits.cpu =
+      podYAML.spec.containers[0].resources.limits.cpu =
         createFormData.value.cpuLimit;
     }
 
     if (createFormData.value.memoryRequest) {
-      podYAML.spec.template.spec.containers[0].resources.requests.memory =
+      podYAML.spec.containers[0].resources.requests.memory =
         createFormData.value.memoryRequest;
-      podYAML.spec.template.spec.containers[0].resources.limits.memory =
+      podYAML.spec.containers[0].resources.limits.memory =
         createFormData.value.memoryLimit;
     }
 
