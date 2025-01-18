@@ -236,20 +236,16 @@ let apiRoot = "/apis/batch/v1/namespaces/{!NAMESPACE}";
 const jobs = ref([]);
 const localQueues = ref([]);
 const pvcs = ref([]);
-const images = ref([
-  "full",
-  "llvm",
-  "gcc",
-  "intel",
-  "cuda",
-  "nvhpc",
-  "aocc",
-  "hpckit",
-  "julia",
-  "base",
-]);
 
 const x86OnlyImages = ref(["intel", "cuda", "aocc"]);
+const armOnlyImages = ref(["hpckit"]);
+const commonImages = ref(["full", "llvm", "gcc", "nvhpc", "julia", "base"]);
+
+const images = computed(() => [
+  ...commonImages.value,
+  ...x86OnlyImages.value,
+  ...armOnlyImages.value,
+]);
 
 const route = useRoute()
 const queryString = (key, init = '') =>
@@ -286,9 +282,12 @@ const createFormDataFactory = () => ({
 const createFormData = ref(createFormDataFactory());
 
 const availableArchitectures = computed(() => {
-  return x86OnlyImages.value.includes(createFormData.value.image)
-    ? ["x86_amd"]
-    : ["x86_amd", "arm"];
+  if (commonImages.value.includes(createFormData.value.image))
+    return ["x86_amd", "arm"];
+  if (x86OnlyImages.value.includes(createFormData.value.image))
+    return ["x86_amd"];
+  if (armOnlyImages.value.includes(createFormData.value.image)) return ["arm"];
+  return ["x86_amd", "arm"];
 });
 
 watch(availableArchitectures, (newVal) => {

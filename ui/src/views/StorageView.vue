@@ -102,11 +102,11 @@
             filterable
           >
             <t-option
-              v-for="item in storageClasses"
-              :key="item.metadata.name"
-              :value="item.metadata.name"
+              v-for="item in availableStorageClasses"
+              :key="item"
+              :value="item"
             >
-              {{ item.metadata.name }}
+              {{ item }}
             </t-option>
           </t-select>
         </t-form-item>
@@ -119,16 +119,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
-import { Footer, MessagePlugin } from "tdesign-vue-next";
+import { ref, onMounted, computed, watch } from "vue";
+import { MessagePlugin } from "tdesign-vue-next";
 import { client } from "@/api/api";
-import { FolderPlusIcon } from "@heroicons/vue/24/outline";
 
 let apiRoot = "/api/v1/namespaces/{!NAMESPACE}";
 
 // PVC 数据
 const pvcs = ref([]);
-const storageClasses = ref([]);
 
 // 创建 PVC 的对话框状态
 const createDialogVisible = ref(false);
@@ -139,6 +137,28 @@ const createFormData = ref({
   storage: "10Gi",
   accessMode: "ReadWriteOnce",
   storageClass: "",
+});
+
+const rwOnceStorageClasses = ref([
+  "npu-local-data",
+  "openebs-hostpath",
+  "x86-amd-local-hostpath",
+]);
+
+const commmonStorageClasses = ref(["juicefs", "wm2-nfs", "yanyuan-nfs"]);
+
+const availableStorageClasses = computed(() => {
+  if (createFormData.value.accessMode === "ReadWriteOnce")
+    return [...rwOnceStorageClasses.value, ...commmonStorageClasses.value];
+  else return commmonStorageClasses.value;
+});
+
+watch(availableStorageClasses, (newVal) => {
+  if (
+    !availableStorageClasses.value.includes(createFormData.value.storageClass)
+  ) {
+    createFormData.value.storageClass = "";
+  }
 });
 
 // 表单验证规则
@@ -160,15 +180,6 @@ const columns = [
   { colKey: "operation", title: "操作", cell: "operation" },
 ];
 
-const fetchStorageClasses = async () => {
-  const response = await client.get("/apis/storage.k8s.io/v1/storageclasses");
-  if (response.status !== 200) {
-    console.error("获取 StorageClass 失败:", response);
-    MessagePlugin.error("获取 StorageClass 失败");
-    return;
-  }
-  storageClasses.value = (await response.json()).items;
-};
 // 获取 PVC 列表
 const fetchPVCs = async () => {
   try {
@@ -229,7 +240,6 @@ const handleCreate = async ({ validateResult }) => {
 
 // 显示创建 PVC 的对话框
 const showCreateDialog = async () => {
-  await fetchStorageClasses();
   createDialogVisible.value = true;
 };
 
