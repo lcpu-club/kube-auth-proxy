@@ -53,7 +53,7 @@ onMounted(async () => {
   const podName = route.query.podName;
   const namespace = `u-${userInfo.username}`;
   const container = route.query.container;
-  const command = "/bin/sh";
+  const command = "/bin/bash";
   // 构造 WebSocket URL
   const wsURL = `${apiServer}/api/v1/namespaces/${namespace}/pods/${podName}/exec?command=${command}&container=${container}&stdin=true&stdout=true&stderr=true&tty=true&auth=${token.value}`;
   // 创建 WebSocket 连接
