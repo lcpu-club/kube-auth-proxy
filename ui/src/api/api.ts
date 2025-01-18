@@ -1,3 +1,4 @@
+import { MessagePlugin } from "tdesign-vue-next";
 import { getToken } from "./token";
 
 async function sleep(ms: number): Promise<void> {
@@ -36,11 +37,16 @@ class Client {
     };
     try {
       let resp = await fetch(url, opts);
+      if (resp.status > 299) {
+        throw await resp.json();
+      }
       return resp;
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
       // TODO: Better handling
-      alert("Failed to fetch " + url);
+      // alert("Failed to fetch " + url);
+      if (e.message)
+        MessagePlugin.error(e.message);
       throw e;
     }
   }
