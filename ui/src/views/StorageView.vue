@@ -89,10 +89,19 @@
 
         <!-- StorageClass -->
         <t-form-item label="StorageClass" name="storageClass">
-          <t-input
+          <t-select
             v-model="createFormData.storageClass"
             placeholder="请输入 StorageClass"
-          />
+            filterable
+          >
+            <t-option
+              v-for="item in storageClasses"
+              :key="item.metadata.name"
+              :value="item.metadata.name"
+            >
+              {{ item.metadata.name }}
+            </t-option>
+          </t-select>
         </t-form-item>
         <t-form-item>
           <t-button theme="primary" type="submit">创建</t-button>
@@ -113,6 +122,7 @@ let namespace = "";
 
 // PVC 数据
 const pvcs = ref([]);
+const storageClasses = ref([]);
 
 // 创建 PVC 的对话框状态
 const createDialogVisible = ref(false);
@@ -122,7 +132,7 @@ const createFormData = ref({
   name: "",
   storage: "10Gi",
   accessMode: "ReadWriteOnce",
-  storageClass: "standard",
+  storageClass: "",
 });
 
 // 表单验证规则
@@ -131,6 +141,7 @@ const createFormRules = {
   namespace: [{ required: true, message: "命名空间不能为空" }],
   storage: [{ required: true, message: "存储大小不能为空" }],
   accessMode: [{ required: true, message: "访问模式不能为空" }],
+  storageClass: [{ required: true, message: "StorageClass 不能为空" }],
 };
 
 // 表格列配置
@@ -142,6 +153,17 @@ const columns = [
   { colKey: "operation", title: "操作", cell: "operation" },
 ];
 
+const fetchStorageClasses = async () => {
+  const response = await client.get(
+    "/apis/storage.k8s.io/v1/storageclasses"
+  );
+  if (response.status !== 200) {
+    console.error("获取 StorageClass 失败:", response);
+    MessagePlugin.error("获取 StorageClass 失败");
+    return;
+  }
+  storageClasses.value = (await response.json()).items;
+};
 // 获取 PVC 列表
 const fetchPVCs = async () => {
   try {
@@ -177,7 +199,7 @@ const handleCreate = async ({ validateResult }) => {
       kind: "PersistentVolumeClaim",
       metadata: {
         name: createFormData.value.name,
-        namespace: "{!NAMESPACE}"
+        namespace: "{!NAMESPACE}",
       },
       spec: {
         accessModes: [createFormData.value.accessMode],
@@ -201,7 +223,8 @@ const handleCreate = async ({ validateResult }) => {
 };
 
 // 显示创建 PVC 的对话框
-const showCreateDialog = () => {
+const showCreateDialog = async () => {
+  await fetchStorageClasses();
   createDialogVisible.value = true;
 };
 
@@ -212,7 +235,7 @@ const closeCreateDialog = () => {
     name: "",
     storage: "10Gi",
     accessMode: "ReadWriteOnce",
-    storageClass: "standard",
+    storageClass: "",
   };
 };
 
