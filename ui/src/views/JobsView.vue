@@ -87,10 +87,33 @@
 
         <!-- 容器镜像 -->
         <t-form-item label="容器镜像" name="image">
-          <t-input
+          <t-select
             v-model="createFormData.image"
             placeholder="请输入容器镜像"
-          />
+            creatable
+            filterable
+          >
+            <t-option
+              v-for="image in images"
+              :key="image"
+              :value="image"
+              :label="image"
+            />
+          </t-select>
+        </t-form-item>
+
+        <t-form-item label="架构" name="architecture">
+          <t-select
+            v-model="createFormData.architecture"
+            placeholder="请选择架构"
+          >
+            <t-option
+              v-for="architecture in availableArchitectures"
+              :key="architecture"
+              :value="architecture"
+              :label="architecture"
+            />
+          </t-select>
         </t-form-item>
 
         <!-- 命令 -->
@@ -100,7 +123,10 @@
 
         <!-- 参数 -->
         <t-form-item label="参数" name="args">
-          <t-input v-model="createFormData.args" placeholder="请输入参数" />
+          <t-textarea
+            v-model="createFormData.args"
+            placeholder="请输入参数（换行分割）"
+          />
         </t-form-item>
 
         <!-- 并行数 -->
@@ -113,6 +139,37 @@
           <t-input-number v-model="createFormData.backoffLimit" :min="0" />
         </t-form-item>
 
+        <!-- PVC 选择 -->
+        <t-form-item label="PVC" name="pvc">
+          <t-select
+            v-model="createFormData.pvc"
+            placeholder="请选择 PVC"
+            clearable
+            filterable
+          >
+            <t-option
+              v-for="pvc in pvcs"
+              :key="pvc.metadata.name"
+              :value="pvc.metadata.name"
+              :label="pvc.metadata.name"
+            />
+          </t-select>
+        </t-form-item>
+
+        <!-- 挂载路径 -->
+        <t-form-item label="挂载路径" name="mountPath">
+          <t-select
+            v-model="createFormData.mountPath"
+            placeholder="请选择挂载路径"
+            creatable
+            filterable
+          >
+            <t-option value="/root" label="/root" />
+            <t-option value="/data" label="/data" />
+            <t-option value="/shared" label="/shared" />
+          </t-select>
+        </t-form-item>
+
         <!-- lxcfs.lcpu.dev/inject 开关 -->
         <t-form-item label="启用 lxcfs" name="lxcfsEnabled">
           <t-switch v-model="createFormData.lxcfsEnabled" />
@@ -121,6 +178,37 @@
         <!-- ssh-operator.lcpu.dev/inject 开关 -->
         <t-form-item label="启用 SSH 服务器" name="sshEnabled">
           <t-switch v-model="createFormData.sshEnabled" />
+        </t-form-item>
+
+        <t-form-item label="RDMA" name="rdma">
+          <t-switch v-model="createFormData.rdma" />
+        </t-form-item>
+
+        <!-- 资源请求和限制 -->
+        <t-form-item label="CPU" name="cpuRequest">
+          <t-input
+            v-model="createFormData.cpuRequest"
+            placeholder="例如：1000m"
+          />
+        </t-form-item>
+
+        <t-form-item label="内存" name="memoryRequest">
+          <t-input
+            v-model="createFormData.memoryRequest"
+            placeholder="例如：1Gi"
+          />
+        </t-form-item>
+
+        <t-form-item label="nvidia.com/gpu" name="gpuRequest">
+          <t-input-number v-model="createFormData.gpuRequest" :min="0" />
+        </t-form-item>
+
+        <t-form-item label="Ascend910" name="ascend910Request">
+          <t-input-number v-model="createFormData.ascend910Request" :min="0" />
+        </t-form-item>
+
+        <t-form-item label="Ascend310P" name="ascend310PRequest">
+          <t-input-number v-model="createFormData.ascend310PRequest" :min="0" />
         </t-form-item>
 
         <t-form-item>
@@ -135,7 +223,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, reactive, computed, watch } from "vue";
 import { MessagePlugin } from "tdesign-vue-next";
 import { client } from "@/api/api";
 
@@ -144,6 +232,21 @@ let apiRoot = "/apis/batch/v1/namespaces/{!NAMESPACE}";
 // Jobs 数据
 const jobs = ref([]);
 const localQueues = ref([]);
+const pvcs = ref([]);
+const images = ref([
+  "full",
+  "llvm",
+  "gcc",
+  "intel",
+  "cuda",
+  "nvhpc",
+  "aocc",
+  "hpckit",
+  "julia",
+  "base",
+]);
+
+const x86OnlyImages = ref(["intel", "cuda", "aocc"]);
 
 // 创建 Job 的对话框状态
 const createDialogVisible = ref(false);
@@ -153,18 +256,39 @@ const createFormData = ref({
   name: "",
   localQueue: "",
   image: "",
-  command: "",
+  architecture: "x86_amd",
+  command: "sleep inf",
   args: "",
   parallelism: 1,
   backoffLimit: 6,
+  pvc: "",
+  mountPath: "/root",
   lxcfsEnabled: false,
-  sshEnabled: false,
+  sshEnabled: true,
+  rdma: true,
+  cpuRequest: "",
+  memoryRequest: "",
+  gpuRequest: 0,
+  ascend910Request: 0,
+  ascend310PRequest: 0,
+});
+
+const availableArchitectures = computed(() => {
+  return x86OnlyImages.value.includes(createFormData.value.image)
+    ? ["x86_amd"]
+    : ["x86_amd", "arm"];
+});
+
+watch(availableArchitectures, (newVal) => {
+  if (newVal.includes(createFormData.value.architecture)) return;
+  createFormData.value.architecture = newVal[0];
 });
 
 // 表单验证规则
 const createFormRules = {
   name: [{ required: true, message: "Job 名称不能为空" }],
   image: [{ required: true, message: "容器镜像不能为空" }],
+  architecture: [{ required: true, message: "架构不能为空" }],
 };
 
 // 表格列配置
@@ -238,6 +362,7 @@ const handleCreate = async ({ validateResult }) => {
           "ssh-operator.lcpu.dev/inject": createFormData.value.sshEnabled
             ? "enabled"
             : "disabled",
+          "k8s.v1.cni.cncf.io/networks": "wm2-roce",
         },
         labels: createFormData.value.localQueue
           ? {
@@ -248,14 +373,48 @@ const handleCreate = async ({ validateResult }) => {
       spec: {
         template: {
           spec: {
+            nodeSelector: {
+              "hpc.lcpu.dev/partition": createFormData.value.architecture,
+            },
             containers: [
               {
                 name: createFormData.value.name,
-                image: createFormData.value.image,
+                securityContext: {
+                  capabilities: {
+                    add: ["IPC_LOCK"],
+                  },
+                },
+                image: images.value.includes(createFormData.value.image)
+                  ? `crmirror.lcpu.dev/hpcgame/${createFormData.value.image}:latest`
+                  : createFormData.value.image,
                 command: createFormData.value.command.split(" "),
-                args: createFormData.value.args.split(" "),
+                args: createFormData.value.args
+                  .split("\n")
+                  .map((x) => x.trim())
+                  .filter((x) => x),
+                resources: {
+                  requests: {
+                    "nvidia.com/gpu": createFormData.value.gpuRequest,
+                    "huawei.com/Ascend910":
+                      createFormData.value.ascend910Request,
+                    "huawei.com/Ascend310P":
+                      createFormData.value.ascend310PRequest,
+                  },
+                  limits: {
+                    "nvidia.com/gpu": createFormData.value.gpuRequest,
+                    "huawei.com/Ascend910":
+                      createFormData.value.ascend910Request,
+                    "huawei.com/Ascend310P":
+                      createFormData.value.ascend310PRequest,
+                    "rdma.hpc.lcpu.dev/hca_cx5": createFormData.value.rdma
+                      ? 1
+                      : 0,
+                  },
+                },
+                volumeMounts: [],
               },
             ],
+            volumes: [],
             restartPolicy: "Never",
           },
         },
@@ -263,6 +422,39 @@ const handleCreate = async ({ validateResult }) => {
         backoffLimit: createFormData.value.backoffLimit,
       },
     };
+
+    if (createFormData.value.cpuRequest) {
+      jobYAML.spec.template.spec.containers[0].resources.requests.cpu =
+        createFormData.value.cpuRequest;
+      jobYAML.spec.template.spec.containers[0].resources.limits.cpu =
+        createFormData.value.cpuLimit;
+    }
+
+    if (createFormData.value.memoryRequest) {
+      jobYAML.spec.template.spec.containers[0].resources.requests.memory =
+        createFormData.value.memoryRequest;
+      jobYAML.spec.template.spec.containers[0].resources.limits.memory =
+        createFormData.value.memoryLimit;
+    }
+
+    // 如果用户选择了 PVC 和挂载路径，则添加到 YAML 中
+    if (createFormData.value.pvc && createFormData.value.mountPath) {
+      jobYAML.spec.template.spec.volumes.push({
+        name: "pvc-volume",
+        persistentVolumeClaim: {
+          claimName: createFormData.value.pvc,
+        },
+      });
+
+      jobYAML.spec.template.spec.containers[0].volumeMounts.push({
+        name: "pvc-volume",
+        mountPath: createFormData.value.mountPath,
+      });
+    }
+
+    if (createFormData.value.localQueue) {
+      jobYAML.spec.suspend = true;
+    }
 
     const response = await client.post(`${apiRoot}/jobs`, jobYAML);
     if (response.status > 299) {
@@ -279,10 +471,25 @@ const handleCreate = async ({ validateResult }) => {
   }
 };
 
+// 获取 PVC 数据
+const fetchPVCs = async () => {
+  try {
+    const response = await client.get(
+      `/api/v1/namespaces/{!NAMESPACE}/persistentvolumeclaims`
+    );
+    const data = await response.json();
+    pvcs.value = data.items;
+  } catch (error) {
+    console.error("获取 PVC 失败:", error);
+    MessagePlugin.error("获取 PVC 失败");
+  }
+};
+
 // 显示创建 Job 的对话框
-const showCreateDialog = () => {
+const showCreateDialog = async () => {
   createDialogVisible.value = true;
-  fetchLocalQueues(); // 获取 LocalQueues 列表
+  await fetchLocalQueues(); // 获取 LocalQueues 列表
+  await fetchPVCs();
 };
 
 // 关闭创建 Job 的对话框
@@ -292,12 +499,19 @@ const closeCreateDialog = () => {
     name: "",
     localQueue: "",
     image: "",
-    command: "",
+    architecture: "x86_amd",
+    command: "sleep inf",
     args: "",
     parallelism: 1,
     backoffLimit: 6,
     lxcfsEnabled: false,
-    sshEnabled: false,
+    sshEnabled: true,
+    rdma: true,
+    cpuRequest: "",
+    memoryRequest: "",
+    gpuRequest: 0,
+    ascend910Request: 0,
+    ascend310PRequest: 0,
   };
 };
 

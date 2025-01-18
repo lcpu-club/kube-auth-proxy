@@ -29,9 +29,11 @@
 
       <!-- 状态列 -->
       <template #status="{ row }">
-        <t-tag :theme="getStatusTheme(row.status.phase)">
-          {{ row.status.phase }}
-        </t-tag>
+        <t-tooltip :content="JSON.stringify(row.status)">
+          <t-tag :theme="getStatusTheme(row.status.phase)">
+            {{ row.status.phase }}
+          </t-tag>
+        </t-tooltip>
       </template>
 
       <!-- 节点列 -->
@@ -96,10 +98,34 @@
 
         <!-- 容器镜像 -->
         <t-form-item label="容器镜像" name="image">
-          <t-input
+          <t-select
             v-model="createFormData.image"
             placeholder="请输入容器镜像"
-          />
+            creatable
+            filterable
+          >
+            <t-option
+              v-for="image in images"
+              :key="image"
+              :value="image"
+              :label="image"
+            />
+          </t-select>
+        </t-form-item>
+
+        <!-- 架构 -->
+        <t-form-item label="架构" name="architecture">
+          <t-select
+            v-model="createFormData.architecture"
+            placeholder="请选择架构"
+          >
+            <t-option
+              v-for="architecture in availableArchitectures"
+              :key="architecture"
+              :value="architecture"
+              :label="architecture"
+            />
+          </t-select>
         </t-form-item>
 
         <!-- 命令 -->
@@ -153,6 +179,38 @@
         <!-- 注解：SSH Operator -->
         <t-form-item label="启用 SSH 服务器" name="sshEnabled">
           <t-switch v-model="createFormData.sshEnabled" />
+        </t-form-item>
+
+        <!-- RDMA -->
+        <t-form-item label="RDMA" name="rdma">
+          <t-switch v-model="createFormData.rdma" />
+        </t-form-item>
+
+        <!-- 资源请求和限制 -->
+        <t-form-item label="CPU" name="cpuRequest">
+          <t-input
+            v-model="createFormData.cpuRequest"
+            placeholder="例如：1000m"
+          />
+        </t-form-item>
+
+        <t-form-item label="内存" name="memoryRequest">
+          <t-input
+            v-model="createFormData.memoryRequest"
+            placeholder="例如：1Gi"
+          />
+        </t-form-item>
+
+        <t-form-item label="nvidia.com/gpu" name="gpuRequest">
+          <t-input-number v-model="createFormData.gpuRequest" :min="0" />
+        </t-form-item>
+
+        <t-form-item label="Ascend910" name="ascend910Request">
+          <t-input-number v-model="createFormData.ascend910Request" :min="0" />
+        </t-form-item>
+
+        <t-form-item label="Ascend310P" name="ascend310PRequest">
+          <t-input-number v-model="createFormData.ascend310PRequest" :min="0" />
         </t-form-item>
 
         <t-form-item>
@@ -227,7 +285,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { MessagePlugin } from "tdesign-vue-next";
 import { client } from "@/api/api";
 import { useRouter } from "vue-router";
@@ -277,16 +335,50 @@ const logDialogVisible = ref(false);
 // 选择容器的对话框状态
 const selectContainerDialogVisible = ref(false);
 
+// 镜像列表
+const images = ref([
+  "full",
+  "llvm",
+  "gcc",
+  "intel",
+  "cuda",
+  "nvhpc",
+  "aocc",
+  "hpckit",
+  "julia",
+  "base",
+]);
+
+const x86OnlyImages = ref(["intel", "cuda", "aocc"]);
+
 // 创建 Pod 的表单数据
 const createFormData = ref({
   name: "",
   image: "",
-  command: "",
+  architecture: "x86_amd",
+  command: "sleep inf",
   args: "",
   pvc: "",
   mountPath: "/root",
   lxcfsEnabled: false,
-  sshEnabled: false,
+  sshEnabled: true,
+  rdma: true,
+  cpuRequest: "",
+  memoryRequest: "",
+  gpuRequest: 0,
+  ascend910Request: 0,
+  ascend310PRequest: 0,
+});
+
+const availableArchitectures = computed(() => {
+  return x86OnlyImages.value.includes(createFormData.value.image)
+    ? ["x86_amd"]
+    : ["x86_amd", "arm"];
+});
+
+watch(availableArchitectures, (newVal) => {
+  if (newVal.includes(createFormData.value.architecture)) return;
+  createFormData.value.architecture = newVal[0];
 });
 
 // 表单验证规则
@@ -366,23 +458,52 @@ const handleCreate = async ({ validateResult }) => {
       },
       spec: {
         nodeSelector: {
-          "hpc.lcpu.dev/partition": "x86_amd"
+          "hpc.lcpu.dev/partition": createFormData.value.architecture,
         },
         containers: [
           {
             name: createFormData.value.name,
-            image: createFormData.value.image,
+            image: images.value.includes(createFormData.value.image)
+              ? `crmirror.lcpu.dev/hpcgame/${createFormData.value.image}:latest`
+              : createFormData.value.image,
             command: createFormData.value.command.split(" "),
             args: createFormData.value.args
               .split("\n")
               .map((x) => x.trim())
               .filter((x) => x),
+            resources: {
+              requests: {
+                "nvidia.com/gpu": createFormData.value.gpuRequest,
+                "huawei.com/Ascend910": createFormData.value.ascend910Request,
+                "huawei.com/Ascend310P": createFormData.value.ascend310PRequest,
+              },
+              limits: {
+                "nvidia.com/gpu": createFormData.value.gpuRequest,
+                "huawei.com/Ascend910": createFormData.value.ascend910Request,
+                "huawei.com/Ascend310P": createFormData.value.ascend310PRequest,
+                "rdma.hpc.lcpu.dev/hca_cx5": createFormData.value.rdma ? 1 : 0,
+              },
+            },
             volumeMounts: [],
           },
         ],
         volumes: [],
       },
     };
+
+    if (createFormData.value.cpuRequest) {
+      jobYAML.spec.template.spec.containers[0].resources.requests.cpu =
+        createFormData.value.cpuRequest;
+      jobYAML.spec.template.spec.containers[0].resources.limits.cpu =
+        createFormData.value.cpuLimit;
+    }
+
+    if (createFormData.value.memoryRequest) {
+      jobYAML.spec.template.spec.containers[0].resources.requests.memory =
+        createFormData.value.memoryRequest;
+      jobYAML.spec.template.spec.containers[0].resources.limits.memory =
+        createFormData.value.memoryLimit;
+    }
 
     // 添加 PVC 挂载
     if (createFormData.value.pvc) {
@@ -427,12 +548,19 @@ const closeCreateDialog = () => {
   createFormData.value = {
     name: "",
     image: "",
-    command: "",
+    architecture: "x86_amd",
+    command: "sleep inf",
     args: "",
     pvc: "",
     mountPath: "/root",
     lxcfsEnabled: false,
-    sshEnabled: false,
+    sshEnabled: true,
+    rdma: true,
+    cpuRequest: "",
+    memoryRequest: "",
+    gpuRequest: 0,
+    ascend910Request: 0,
+    ascend310PRequest: 0,
   };
 };
 
