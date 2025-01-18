@@ -345,36 +345,38 @@ const images = computed(() => [
   ...armOnlyImages.value,
 ]);
 
-const route = useRoute()
-const queryString = (key, init = '') =>
-  typeof route.query[key] === 'string' ? route.query[key] : init
+const route = useRoute();
+const queryString = (key, init = "") =>
+  typeof route.query[key] === "string" ? route.query[key] : init;
 const queryBoolean = (key, init = false) =>
-  typeof route.query[key] === 'string' ? route.query[key] === 'true' : init
+  typeof route.query[key] === "string" ? route.query[key] === "true" : init;
 const queryNumber = (key, init = 0) =>
-  typeof route.query[key] === 'string' && isFinite(route.query[key]) ? +route.query[key] : init
+  typeof route.query[key] === "string" && isFinite(route.query[key])
+    ? +route.query[key]
+    : init;
 
 // 创建 Pod 的对话框状态
-const createDialogVisible = ref('name' in route.query);
+const createDialogVisible = ref("name" in route.query);
 
 // 创建 Pod 的表单数据
 const createFormDataFactory = () => ({
-  name: queryString('name', ''),
-  image: queryString('image', ''),
-  architecture: queryString('architecture', 'x86_amd'),
-  command: queryString('command', 'sleep'),
-  args: queryString('args', 'inf'),
-  pvc: queryString('pvc', ''),
-  mountPath: queryString('mountPath', '/root'),
-  lxcfsEnabled: queryBoolean('lxcfsEnabled', false),
-  sshEnabled: queryBoolean('sshEnabled', true),
-  rdma: queryBoolean('rdma', true),
-  cpuRequest: queryString('cpuRequest', ''),
-  memoryRequest: queryString('memoryRequest', ''),
-  gpuRequest: queryNumber('gpuRequest', 0),
-  ascend910Request: queryNumber('ascend910Request', 0),
-  ascend310PRequest: queryNumber('ascend310PRequest', 0)
-})
-const createFormData = ref(createFormDataFactory())
+  name: queryString("name", ""),
+  image: queryString("image", ""),
+  architecture: queryString("architecture", "x86_amd"),
+  command: queryString("command", "sleep"),
+  args: queryString("args", "inf"),
+  pvc: queryString("pvc", ""),
+  mountPath: queryString("mountPath", "/root"),
+  lxcfsEnabled: queryBoolean("lxcfsEnabled", false),
+  sshEnabled: queryBoolean("sshEnabled", true),
+  rdma: queryBoolean("rdma", true),
+  cpuRequest: queryString("cpuRequest", ""),
+  memoryRequest: queryString("memoryRequest", ""),
+  gpuRequest: queryNumber("gpuRequest", 0),
+  ascend910Request: queryNumber("ascend910Request", 0),
+  ascend310PRequest: queryNumber("ascend310PRequest", 0),
+});
+const createFormData = ref(createFormDataFactory());
 
 const availableArchitectures = computed(() => {
   if (commonImages.value.includes(createFormData.value.image))
@@ -675,6 +677,7 @@ onMounted(async () => {
   await client.ensureUsername();
   // opening new window will require this
   username = client.username;
+  router.replace({ ...route, query: {} });
   fetchPods();
 });
 </script>
