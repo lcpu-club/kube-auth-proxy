@@ -173,6 +173,11 @@
           </t-select>
         </t-form-item>
 
+        <!-- 标签 -->
+        <t-form-item label="标签" name="labels">
+          <t-input v-model="createFormData.labels" placeholder="a=b, c=d" />
+        </t-form-item>
+
         <!-- 注解：LXCFS -->
         <t-form-item label="启用 LXCFS" name="lxcfsEnabled">
           <t-switch v-model="createFormData.lxcfsEnabled" />
@@ -367,6 +372,7 @@ const createFormDataFactory = () => ({
   args: queryString("args", "inf"),
   pvc: queryString("pvc", ""),
   mountPath: queryString("mountPath", "/root"),
+  labels: queryString("labels"),
   lxcfsEnabled: queryBoolean("lxcfsEnabled", false),
   sshEnabled: queryBoolean("sshEnabled", true),
   rdma: queryBoolean("rdma", true),
@@ -467,6 +473,11 @@ const handleCreate = async ({ validateResult }) => {
             ? "enabled"
             : "disabled",
         },
+        labels: createFormData.value.labels.split(",").reduce((acc, x) => {
+          const [k, v] = x.split("=");
+          if (k && v) acc[k.trim()] = v.trim();
+          return acc;
+        }, {}),
       },
       spec: {
         nodeSelector: {
@@ -502,8 +513,6 @@ const handleCreate = async ({ validateResult }) => {
         volumes: [],
       },
     };
-
-    console.log(podYAML.spec);
 
     if (createFormData.value.cpuRequest) {
       podYAML.spec.containers[0].resources.requests.cpu =
@@ -546,7 +555,6 @@ const handleCreate = async ({ validateResult }) => {
   } catch (error) {
     console.error("创建 Pod 失败:", error);
     MessagePlugin.error("创建 Pod 失败");
-    MessagePlugin.error(error.message);
   }
 };
 

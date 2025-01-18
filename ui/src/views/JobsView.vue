@@ -158,6 +158,11 @@
           </t-select>
         </t-form-item>
 
+        <!-- 标签 -->
+        <t-form-item label="标签" name="labels">
+          <t-input v-model="createFormData.labels" placeholder="a=b, c=d" />
+        </t-form-item>
+
         <!-- 挂载路径 -->
         <t-form-item label="挂载路径" name="mountPath">
           <t-select
@@ -274,6 +279,7 @@ const createFormDataFactory = () => ({
   backoffLimit: queryNumber("backoffLimit", 6),
   pvc: queryString("pvc"),
   mountPath: queryString("mountPath", "/root"),
+  labels: queryString("labels"),
   lxcfsEnabled: queryBoolean("lxcfsEnabled", false),
   sshEnabled: queryBoolean("sshEnabled", true),
   rdma: queryBoolean("rdma", true),
@@ -387,6 +393,13 @@ const handleCreate = async ({ validateResult }) => {
       },
       spec: {
         template: {
+          metadata: {
+            labels: createFormData.value.labels.split(",").reduce((acc, x) => {
+              const [k, v] = x.split("=");
+              if (k && v) acc[k.trim()] = v.trim();
+              return acc;
+            }, {}),
+          },
           spec: {
             nodeSelector: {
               "hpc.lcpu.dev/partition": createFormData.value.architecture,
@@ -482,7 +495,6 @@ const handleCreate = async ({ validateResult }) => {
   } catch (error) {
     console.error("创建 Job 失败:", error);
     MessagePlugin.error("创建 Job 失败");
-    MessagePlugin.error(error.message);
   }
 };
 
