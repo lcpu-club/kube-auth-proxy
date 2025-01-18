@@ -98,7 +98,9 @@ class Client {
   }
 
   async ensureUsername() {
+    if (!getToken()) window.location.href = "../oauth/redirect";
     if (this.username) return;
+    
     const userInfo = await (
       await this.req(
         "/_/whoami",
