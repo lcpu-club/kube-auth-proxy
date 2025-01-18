@@ -68,28 +68,30 @@
           />
         </t-form-item>
 
-        <!-- 私钥 -->
-        <t-form-item label="私钥" name="privateKey">
-          <t-textarea
-            v-model="createFormData.privateKey"
-            :placeholder="`-----BEGIN OPENSSH PRIVATE KEY-----\n\n-----END OPENSSH PRIVATE KEY-----`"
-            :autosize="{ minRows: 3, maxRows: 6 }"
-          />
-        </t-form-item>
-
-        <!-- 公钥 -->
-        <t-form-item label="公钥" name="publicKey">
-          <t-textarea
-            v-model="createFormData.publicKey"
-            :placeholder="`ssh-ed25519 ...`"
-            :autosize="{ minRows: 3, maxRows: 6 }"
-          />
+        <!-- 类型 -->
+        <t-form-item label="类型" name="type">
+          <t-select
+            v-model="createFormData.type"
+            placeholder="请选择类型"
+            filterable
+            creatable
+          >
+            <t-option
+              v-for="type in predefinedKeyTypes"
+              :key="type"
+              :value="type"
+            >
+              {{ type }}
+            </t-option>
+          </t-select>
         </t-form-item>
 
         <!-- 提交按钮 -->
         <t-form-item>
           <t-space>
-            <t-button theme="primary" type="submit">提交</t-button>
+            <t-button theme="primary" type="submit" :loading="creatingKeyPair"
+              >提交</t-button
+            >
             <t-button theme="default" @click="closeCreateDialog">取消</t-button>
           </t-space>
         </t-form-item>
@@ -126,19 +128,22 @@ const createDialogVisible = ref(false);
 const viewKeyDialogVisible = ref(false);
 const displayingKey = ref("");
 const displayingKeyType = ref("");
+const creatingKeyPair = ref(false);
 
 // 创建 SSHKeyPair 的表单数据
 const createFormData = ref({
   name: "",
+  type: "",
   privateKey: "",
   publicKey: "",
 });
 
+const predefinedKeyTypes = ["ssh-ed25519", "ssh-rsa"];
+
 // 表单验证规则
 const createFormRules = {
   name: [{ required: true, message: "SSHKeyPair 名称不能为空" }],
-  privateKey: [{ required: true, message: "私钥不能为空" }],
-  publicKey: [{ required: true, message: "公钥不能为空" }],
+  type: [{ required: true, message: "类型不能为空" }],
 };
 
 // 表格列配置
@@ -179,6 +184,7 @@ const handleDelete = async (sshKeyPairName) => {
 // 创建 SSHKeyPair
 const handleCreate = async ({ validateResult }) => {
   if (validateResult !== true) return;
+  creatingKeyPair.value = true;
   try {
     const sshKeyPairYAML = {
       apiVersion: "ssh-operator.lcpu.dev/v1alpha1",
@@ -188,9 +194,7 @@ const handleCreate = async ({ validateResult }) => {
         namespace: `{!NAMESPACE}`, // 自动使用 u-${username} 作为 namespace
       },
       spec: {
-        name: createFormData.value.name,
-        privateKey: createFormData.value.privateKey,
-        publicKey: createFormData.value.publicKey,
+        type: createFormData.value.type,
       },
     };
 
@@ -201,6 +205,8 @@ const handleCreate = async ({ validateResult }) => {
   } catch (error) {
     console.error("创建 SSHKeyPair 失败:", error);
     MessagePlugin.error("创建 SSHKeyPair 失败");
+  } finally {
+    creatingKeyPair.value = false;
   }
 };
 
@@ -214,8 +220,7 @@ const closeCreateDialog = () => {
   createDialogVisible.value = false;
   createFormData.value = {
     name: "",
-    privateKey: "",
-    publicKey: "",
+    type: "",
   };
 };
 
