@@ -53,9 +53,11 @@
     <t-dialog
       v-model:visible="createDialogVisible"
       header="创建 Job"
+      placement="center"
       :footer="false"
     >
       <t-form
+        labelWidth="120px"
         :data="createFormData"
         :rules="createFormRules"
         @submit="handleCreate"
@@ -199,7 +201,7 @@
           />
         </t-form-item>
 
-        <t-form-item label="nvidia.com/gpu" name="gpuRequest">
+        <t-form-item label="Nvidia GPU" name="gpuRequest">
           <t-input-number v-model="createFormData.gpuRequest" :min="0" />
         </t-form-item>
 
@@ -226,6 +228,7 @@
 import { ref, onMounted, reactive, computed, watch } from "vue";
 import { MessagePlugin } from "tdesign-vue-next";
 import { client } from "@/api/api";
+import { useRouter, useRoute } from "vue-router";
 
 let apiRoot = "/apis/batch/v1/namespaces/{!NAMESPACE}";
 
@@ -244,30 +247,39 @@ const images = computed(() => [
   ...armOnlyImages.value,
 ]);
 
+const route = useRoute()
+const queryString = (key, init = '') =>
+  typeof route.query[key] === 'string' ? route.query[key] : init
+const queryBoolean = (key, init = false) =>
+  typeof route.query[key] === 'string' ? route.query[key] === 'true' : init
+const queryNumber = (key, init = 0) =>
+  typeof route.query[key] === 'string' && isFinite(route.query[key]) ? +route.query[key] : init
+
 // 创建 Job 的对话框状态
-const createDialogVisible = ref(false);
+const createDialogVisible = ref('name' in route.query);
 
 // 创建 Job 的表单数据
-const createFormData = ref({
-  name: "",
-  localQueue: "",
-  image: "",
-  architecture: "x86_amd",
-  command: "sleep inf",
-  args: "",
-  parallelism: 1,
-  backoffLimit: 6,
-  pvc: "",
-  mountPath: "/root",
-  lxcfsEnabled: false,
-  sshEnabled: true,
-  rdma: true,
-  cpuRequest: "",
-  memoryRequest: "",
-  gpuRequest: 0,
-  ascend910Request: 0,
-  ascend310PRequest: 0,
-});
+const createFormDataFactory = () => ({
+  name: queryString('name'),
+  localQueue: queryString('localQueue'),
+  image: queryString('image'),
+  architecture: queryString('architecture', 'x86_amd'),
+  command: queryString('command', 'sleep'),
+  args: queryString('args', 'inf'),
+  parallelism: queryNumber('parallelism', 1),
+  backoffLimit: queryNumber('backoffLimit', 6),
+  pvc: queryString('pvc'),
+  mountPath: queryString('mountPath', '/root'),
+  lxcfsEnabled: queryBoolean('lxcfsEnabled', false),
+  sshEnabled: queryBoolean('sshEnabled', true),
+  rdma: queryBoolean('rdma', true),
+  cpuRequest: queryString('cpuRequest'),
+  memoryRequest: queryString('memoryRequest'),
+  gpuRequest: queryNumber('gpuRequest', 0),
+  ascend910Request: queryNumber('ascend910Request', 0),
+  ascend310PRequest: queryNumber('ascend310PRequest', 0),
+})
+const createFormData = ref(createFormDataFactory());
 
 const availableArchitectures = computed(() => {
   if (commonImages.value.includes(createFormData.value.image))
@@ -494,24 +506,7 @@ const showCreateDialog = async () => {
 // 关闭创建 Job 的对话框
 const closeCreateDialog = () => {
   createDialogVisible.value = false;
-  createFormData.value = {
-    name: "",
-    localQueue: "",
-    image: "",
-    architecture: "x86_amd",
-    command: "sleep inf",
-    args: "",
-    parallelism: 1,
-    backoffLimit: 6,
-    lxcfsEnabled: false,
-    sshEnabled: true,
-    rdma: true,
-    cpuRequest: "",
-    memoryRequest: "",
-    gpuRequest: 0,
-    ascend910Request: 0,
-    ascend310PRequest: 0,
-  };
+  createFormData.value = createFormDataFactory();
 };
 
 // 格式化日期
