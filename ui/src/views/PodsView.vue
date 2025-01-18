@@ -367,7 +367,7 @@ const createDialogVisible = ref("name" in route.query);
 const createFormDataFactory = () => ({
   name: queryString("name", ""),
   image: queryString("image", ""),
-  architecture: queryString("architecture", "x86_amd"),
+  architecture: queryString("architecture", "x86"),
   command: queryString("command", "sleep"),
   args: queryString("args", "inf"),
   pvc: queryString("pvc", ""),
@@ -386,11 +386,11 @@ const createFormData = ref(createFormDataFactory());
 
 const availableArchitectures = computed(() => {
   if (commonImages.value.includes(createFormData.value.image))
-    return ["x86_amd", "arm"];
+    return ["x86", "x86_amd", "arm"];
   if (x86OnlyImages.value.includes(createFormData.value.image))
-    return ["x86_amd"];
+    return ["x86", "x86_amd"];
   if (armOnlyImages.value.includes(createFormData.value.image)) return ["arm"];
-  return ["x86_amd", "arm"];
+  return ["x86", "x86_amd", "arm"];
 });
 
 watch(availableArchitectures, (newVal) => {
