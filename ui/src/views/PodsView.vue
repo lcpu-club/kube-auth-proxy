@@ -386,11 +386,11 @@ const createFormData = ref(createFormDataFactory());
 
 const availableArchitectures = computed(() => {
   if (commonImages.value.includes(createFormData.value.image))
-    return ["x86", "x86_amd", "arm"];
+  return ["x86", "x86_amd", "arm", "gpu", "npu", "npu_inf"];
   if (x86OnlyImages.value.includes(createFormData.value.image))
-    return ["x86", "x86_amd"];
-  if (armOnlyImages.value.includes(createFormData.value.image)) return ["arm"];
-  return ["x86", "x86_amd", "arm"];
+  return ["x86", "x86_amd", "gpu"];
+  if (armOnlyImages.value.includes(createFormData.value.image)) return ["arm", "npu", "npu_inf"];
+  return ["x86", "x86_amd", "arm", "gpu", "npu", "npu_inf"];
 });
 
 watch(availableArchitectures, (newVal) => {
