@@ -22,9 +22,16 @@
         </span>
       </template>
 
-      <!-- 命名空间列 -->
-      <template #namespace="{ row }">
-        <t-tag>{{ row.metadata.namespace }}</t-tag>
+      <template #storageClass="{ row }">
+        <span>
+          {{ row.spec.storageClassName }}
+        </span>
+      </template>
+
+      <template #accessMode="{ row }">
+        <span>
+          {{ row.spec.accessModes.join(", ") }}
+        </span>
       </template>
 
       <!-- 状态列 -->
@@ -118,7 +125,6 @@ import { client } from "@/api/api";
 import { FolderPlusIcon } from "@heroicons/vue/24/outline";
 
 let apiRoot = "/api/v1/namespaces/{!NAMESPACE}";
-let namespace = "";
 
 // PVC 数据
 const pvcs = ref([]);
@@ -147,16 +153,15 @@ const createFormRules = {
 // 表格列配置
 const columns = [
   { colKey: "name", title: "名称", cell: "name" },
-  { colKey: "namespace", title: "命名空间", cell: "namespace" },
+  { colKey: "storageClass", title: "StorageClass", cell: "storageClass" },
+  { colKey: "accessMode", title: "访问模式", cell: "accessMode" },
   { colKey: "status", title: "状态", cell: "status" },
   { colKey: "capacity", title: "容量", cell: "capacity" },
   { colKey: "operation", title: "操作", cell: "operation" },
 ];
 
 const fetchStorageClasses = async () => {
-  const response = await client.get(
-    "/apis/storage.k8s.io/v1/storageclasses"
-  );
+  const response = await client.get("/apis/storage.k8s.io/v1/storageclasses");
   if (response.status !== 200) {
     console.error("获取 StorageClass 失败:", response);
     MessagePlugin.error("获取 StorageClass 失败");
