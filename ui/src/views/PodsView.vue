@@ -336,20 +336,15 @@ const logDialogVisible = ref(false);
 const selectContainerDialogVisible = ref(false);
 
 // 镜像列表
-const images = ref([
-  "full",
-  "llvm",
-  "gcc",
-  "intel",
-  "cuda",
-  "nvhpc",
-  "aocc",
-  "hpckit",
-  "julia",
-  "base",
-]);
-
 const x86OnlyImages = ref(["intel", "cuda", "aocc"]);
+const armOnlyImages = ref(["hpckit"]);
+const commonImages = ref(["full", "llvm", "gcc", "nvhpc", "julia", "base"]);
+
+const images = computed(() => [
+  ...commonImages.value,
+  ...x86OnlyImages.value,
+  ...armOnlyImages.value,
+]);
 
 // 创建 Pod 的表单数据
 const createFormData = ref({
@@ -371,9 +366,12 @@ const createFormData = ref({
 });
 
 const availableArchitectures = computed(() => {
-  return x86OnlyImages.value.includes(createFormData.value.image)
-    ? ["x86_amd"]
-    : ["x86_amd", "arm"];
+  if (commonImages.value.includes(createFormData.value.image))
+    return ["x86_amd", "arm"];
+  if (x86OnlyImages.value.includes(createFormData.value.image))
+    return ["x86_amd"];
+  if (armOnlyImages.value.includes(createFormData.value.image)) return ["arm"];
+  return ["x86_amd", "arm"];
 });
 
 watch(availableArchitectures, (newVal) => {
@@ -385,6 +383,7 @@ watch(availableArchitectures, (newVal) => {
 const createFormRules = {
   name: [{ required: true, message: "Pod 名称不能为空" }],
   image: [{ required: true, message: "容器镜像不能为空" }],
+  architecture: [{ required: true, message: "架构不能为空" }],
 };
 
 // 表格列配置
@@ -491,17 +490,19 @@ const handleCreate = async ({ validateResult }) => {
       },
     };
 
+    console.log(podYAML.spec);
+
     if (createFormData.value.cpuRequest) {
-      jobYAML.spec.template.spec.containers[0].resources.requests.cpu =
+      podYAML.spec.template.spec.containers[0].resources.requests.cpu =
         createFormData.value.cpuRequest;
-      jobYAML.spec.template.spec.containers[0].resources.limits.cpu =
+      podYAML.spec.template.spec.containers[0].resources.limits.cpu =
         createFormData.value.cpuLimit;
     }
 
     if (createFormData.value.memoryRequest) {
-      jobYAML.spec.template.spec.containers[0].resources.requests.memory =
+      podYAML.spec.template.spec.containers[0].resources.requests.memory =
         createFormData.value.memoryRequest;
-      jobYAML.spec.template.spec.containers[0].resources.limits.memory =
+      podYAML.spec.template.spec.containers[0].resources.limits.memory =
         createFormData.value.memoryLimit;
     }
 
@@ -661,7 +662,7 @@ const handleMoreTools = async (podInfo) => {
     return;
   }
   // defaults to the first container
-  selectedPodContianer.value = podInfo.metadata.name;
+  selectedPodContianer.value = podInfo.spec.containers[0].name;
   selectedPod.value = podInfo.metadata.name;
   currentPodContainers.value = podInfo.spec.containers.map(
     (container) => container.name
