@@ -26,9 +26,10 @@
         </span>
       </template>
 
-      <!-- 命名空间列 -->
-      <template #namespace="{ row }">
-        <t-tag>{{ row.metadata.namespace }}</t-tag>
+      <template #publicKey="{ row }">
+        <span>
+          {{ row.spec.key }}
+        </span>
       </template>
 
       <!-- 操作列 -->
@@ -52,7 +53,7 @@
         @submit="handleCreate"
       >
         <!-- SSHAuthorizedKey 名称 -->
-        <t-form-item label="SSHAuthorizedKey 名称" name="name">
+        <t-form-item label="名称" name="name">
           <t-input
             v-model="createFormData.name"
             placeholder="请输入 SSHAuthorizedKey 名称"
@@ -63,7 +64,7 @@
         <t-form-item label="公钥" name="publicKey">
           <t-textarea
             v-model="createFormData.publicKey"
-            placeholder="请输入 SSH 公钥"
+            placeholder="ssh-ed25519 ..."
             :autosize="{ minRows: 3, maxRows: 6 }"
           />
         </t-form-item>
@@ -106,31 +107,18 @@ const createFormRules = {
 // 表格列配置
 const columns = [
   { colKey: "name", title: "名称", cell: "name" },
-  { colKey: "namespace", title: "命名空间", cell: "namespace" },
+  { colKey: "publicKey", title: "公钥", cell: "publicKey" },
   { colKey: "operation", title: "操作", cell: "operation" },
 ];
 
 // 用户信息和 API 根路径
-let apiRoot = ref("");
-let username = ref("");
-
-// 获取用户信息并设置 API 根路径
-const fetchUserInfo = async () => {
-  try {
-    const userInfo = await (await client.get("/_/whoami")).json();
-    apiRoot.value = `/api/v1/namespaces/u-${userInfo.username}`;
-    username.value = userInfo.username;
-  } catch (error) {
-    console.error("获取用户信息失败:", error);
-    MessagePlugin.error("获取用户信息失败");
-  }
-};
+let apiRoot = "/apis/ssh-operator.lcpu.dev/v1alpha1/namespaces/{!NAMESPACE}";
 
 // 获取 SSHAuthorizedKey 列表
 const fetchSSHAuthorizedKeys = async () => {
   try {
-    const response = await client.get(`${apiRoot.value}/sshauthorizedkeys`);
-    sshAuthorizedKeys.value = response.items;
+    const response = await client.get(`${apiRoot}/sshauthorizedkeys`);
+    sshAuthorizedKeys.value = (await response.json()).items;
     MessagePlugin.success("SSHAuthorizedKey 列表刷新成功");
   } catch (error) {
     console.error("获取 SSHAuthorizedKey 失败:", error);
@@ -141,9 +129,7 @@ const fetchSSHAuthorizedKeys = async () => {
 // 删除 SSHAuthorizedKey
 const handleDelete = async (sshAuthorizedKeyName) => {
   try {
-    await client.delete(
-      `${apiRoot.value}/sshauthorizedkeys/${sshAuthorizedKeyName}`
-    );
+    await client.delete(`${apiRoot}/sshauthorizedkeys/${sshAuthorizedKeyName}`);
     MessagePlugin.success(`SSHAuthorizedKey ${sshAuthorizedKeyName} 删除成功`);
     fetchSSHAuthorizedKeys(); // 刷新列表
   } catch (error) {
@@ -153,22 +139,22 @@ const handleDelete = async (sshAuthorizedKeyName) => {
 };
 
 // 创建 SSHAuthorizedKey
-const handleCreate = async () => {
+const handleCreate = async ({ validateResult }) => {
+  if (validateResult !== true) return;
   try {
     const sshAuthorizedKeyYAML = {
-      apiVersion: "v1",
+      apiVersion: "ssh-operator.lcpu.dev/v1alpha1",
       kind: "SSHAuthorizedKey",
       metadata: {
         name: createFormData.value.name,
-        namespace: `u-${username.value}`, // 自动使用 u-${username} 作为 namespace
+        namespace: `{!NAMESPACE}`, // 自动使用 u-${username} 作为 namespace
       },
-      publicKey: createFormData.value.publicKey,
+      spec: {
+        key: createFormData.value.publicKey,
+      },
     };
 
-    await client.post(
-      `${apiRoot.value}/sshauthorizedkeys`,
-      sshAuthorizedKeyYAML
-    );
+    await client.post(`${apiRoot}/sshauthorizedkeys`, sshAuthorizedKeyYAML);
     MessagePlugin.success("SSHAuthorizedKey 创建成功");
     closeCreateDialog(); // 关闭对话框
     fetchSSHAuthorizedKeys(); // 刷新列表
@@ -194,7 +180,7 @@ const closeCreateDialog = () => {
 
 // 组件挂载时获取用户信息和 SSHAuthorizedKey 列表
 onMounted(async () => {
-  await fetchUserInfo();
+  await client.ensureUsername();
   fetchSSHAuthorizedKeys();
 });
 </script>

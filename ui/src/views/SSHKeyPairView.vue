@@ -22,9 +22,22 @@
         </span>
       </template>
 
-      <!-- 命名空间列 -->
-      <template #namespace="{ row }">
-        <t-tag>{{ row.metadata.namespace }}</t-tag>
+      <template #privateKey="{ row }">
+        <t-button
+          variant="text"
+          @click="displayKey(row.spec.privateKey, 'private')"
+        >
+          查看
+        </t-button>
+      </template>
+
+      <template #publicKey="{ row }">
+        <t-button
+          variant="text"
+          @click="displayKey(row.spec.publicKey, 'public')"
+        >
+          查看
+        </t-button>
       </template>
 
       <!-- 操作列 -->
@@ -48,7 +61,7 @@
         @submit="handleCreate"
       >
         <!-- SSHKeyPair 名称 -->
-        <t-form-item label="SSHKeyPair 名称" name="name">
+        <t-form-item label="名称" name="name">
           <t-input
             v-model="createFormData.name"
             placeholder="请输入 SSHKeyPair 名称"
@@ -59,7 +72,7 @@
         <t-form-item label="私钥" name="privateKey">
           <t-textarea
             v-model="createFormData.privateKey"
-            placeholder="请输入 SSH 私钥"
+            :placeholder="`-----BEGIN OPENSSH PRIVATE KEY-----\n\n-----END OPENSSH PRIVATE KEY-----`"
             :autosize="{ minRows: 3, maxRows: 6 }"
           />
         </t-form-item>
@@ -68,7 +81,7 @@
         <t-form-item label="公钥" name="publicKey">
           <t-textarea
             v-model="createFormData.publicKey"
-            placeholder="请输入 SSH 公钥"
+            :placeholder="`ssh-ed25519 ...`"
             :autosize="{ minRows: 3, maxRows: 6 }"
           />
         </t-form-item>
@@ -81,6 +94,21 @@
           </t-space>
         </t-form-item>
       </t-form>
+    </t-dialog>
+
+    <t-dialog
+      v-model:visible="viewKeyDialogVisible"
+      :header="'查看' + (displayingKeyType == 'private' ? '私钥' : '公钥')"
+      width="50em"
+      @confirm="viewKeyDialogVisible = false"
+      :cancel-btn="null"
+    >
+      <t-textarea
+        readonly
+        autosize
+        v-model="displayingKey"
+        style="font-family: monospace"
+      />
     </t-dialog>
   </div>
 </template>
@@ -95,6 +123,9 @@ const sshKeyPairs = ref([]);
 
 // 创建 SSHKeyPair 的对话框状态
 const createDialogVisible = ref(false);
+const viewKeyDialogVisible = ref(false);
+const displayingKey = ref("");
+const displayingKeyType = ref("");
 
 // 创建 SSHKeyPair 的表单数据
 const createFormData = ref({
@@ -113,31 +144,19 @@ const createFormRules = {
 // 表格列配置
 const columns = [
   { colKey: "name", title: "名称", cell: "name" },
-  { colKey: "namespace", title: "命名空间", cell: "namespace" },
+  { colKey: "privateKey", title: "私钥", cell: "privateKey" },
+  { colKey: "publicKey", title: "公钥", cell: "publicKey" },
   { colKey: "operation", title: "操作", cell: "operation" },
 ];
 
 // 用户信息和 API 根路径
-let apiRoot = ref("");
-let username = ref("");
-
-// 获取用户信息并设置 API 根路径
-const fetchUserInfo = async () => {
-  try {
-    const userInfo = await (await client.get("/_/whoami")).json();
-    apiRoot.value = `/api/v1/namespaces/u-${userInfo.username}`;
-    username.value = userInfo.username;
-  } catch (error) {
-    console.error("获取用户信息失败:", error);
-    MessagePlugin.error("获取用户信息失败");
-  }
-};
+let apiRoot = "/apis/ssh-operator.lcpu.dev/v1alpha1/namespaces/{!NAMESPACE}";
 
 // 获取 SSHKeyPair 列表
 const fetchSSHKeyPairs = async () => {
   try {
-    const response = await client.get(`${apiRoot.value}/sshkeypairs`);
-    sshKeyPairs.value = response.items;
+    const response = await client.get(`${apiRoot}/sshkeypairs`);
+    sshKeyPairs.value = (await response.json()).items;
     MessagePlugin.success("SSHKeyPair 列表刷新成功");
   } catch (error) {
     console.error("获取 SSHKeyPair 失败:", error);
@@ -148,7 +167,7 @@ const fetchSSHKeyPairs = async () => {
 // 删除 SSHKeyPair
 const handleDelete = async (sshKeyPairName) => {
   try {
-    await client.delete(`${apiRoot.value}/sshkeypairs/${sshKeyPairName}`);
+    await client.delete(`${apiRoot}/sshkeypairs/${sshKeyPairName}`);
     MessagePlugin.success(`SSHKeyPair ${sshKeyPairName} 删除成功`);
     fetchSSHKeyPairs(); // 刷新列表
   } catch (error) {
@@ -158,20 +177,24 @@ const handleDelete = async (sshKeyPairName) => {
 };
 
 // 创建 SSHKeyPair
-const handleCreate = async () => {
+const handleCreate = async ({ validateResult }) => {
+  if (validateResult !== true) return;
   try {
     const sshKeyPairYAML = {
-      apiVersion: "v1",
+      apiVersion: "ssh-operator.lcpu.dev/v1alpha1",
       kind: "SSHKeyPair",
       metadata: {
         name: createFormData.value.name,
-        namespace: `u-${username.value}`, // 自动使用 u-${username} 作为 namespace
+        namespace: `{!NAMESPACE}`, // 自动使用 u-${username} 作为 namespace
       },
-      privateKey: createFormData.value.privateKey,
-      publicKey: createFormData.value.publicKey,
+      spec: {
+        name: createFormData.value.name,
+        privateKey: createFormData.value.privateKey,
+        publicKey: createFormData.value.publicKey,
+      },
     };
 
-    await client.post(`${apiRoot.value}/sshkeypairs`, sshKeyPairYAML);
+    await client.post(`${apiRoot}/sshkeypairs`, sshKeyPairYAML);
     MessagePlugin.success("SSHKeyPair 创建成功");
     closeCreateDialog(); // 关闭对话框
     fetchSSHKeyPairs(); // 刷新列表
@@ -196,9 +219,15 @@ const closeCreateDialog = () => {
   };
 };
 
+const displayKey = (key, type) => {
+  displayingKey.value = key;
+  displayingKeyType.value = type;
+  viewKeyDialogVisible.value = true;
+};
+
 // 组件挂载时获取用户信息和 SSHKeyPair 列表
 onMounted(async () => {
-  await fetchUserInfo();
+  await client.ensureUsername();
   fetchSSHKeyPairs();
 });
 </script>
