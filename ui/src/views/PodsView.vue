@@ -365,6 +365,9 @@ const handleCreate = async ({ validateResult }) => {
         },
       },
       spec: {
+        nodeSelector: {
+          "hpc.lcpu.dev/partition": "x86_amd"
+        },
         containers: [
           {
             name: createFormData.value.name,
