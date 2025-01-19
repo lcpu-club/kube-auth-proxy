@@ -539,7 +539,7 @@ const handleCreate = async ({ validateResult }) => {
       podYAML.spec.containers[0].resources.requests.cpu =
         createFormData.value.cpuRequest;
       podYAML.spec.containers[0].resources.limits.cpu =
-        createFormData.value.cpuLimit;
+        createFormData.value.cpuRequest;
     }
 
     if (createFormData.value.memoryRequest) {

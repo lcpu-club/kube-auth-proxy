@@ -476,14 +476,14 @@ const handleCreate = async ({ validateResult }) => {
       jobYAML.spec.template.spec.containers[0].resources.requests.cpu =
         createFormData.value.cpuRequest;
       jobYAML.spec.template.spec.containers[0].resources.limits.cpu =
-        createFormData.value.cpuLimit;
+        createFormData.value.cpuRequest;
     }
 
     if (createFormData.value.memoryRequest) {
       jobYAML.spec.template.spec.containers[0].resources.requests.memory =
         createFormData.value.memoryRequest;
       jobYAML.spec.template.spec.containers[0].resources.limits.memory =
-        createFormData.value.memoryLimit;
+        createFormData.value.memoryRequest;
     }
 
     // 如果用户选择了 PVC 和挂载路径，则添加到 YAML 中
