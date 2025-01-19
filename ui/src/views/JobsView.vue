@@ -104,10 +104,10 @@
           </t-select>
         </t-form-item>
 
-        <t-form-item label="架构" name="architecture">
+        <t-form-item label="分区" name="architecture">
           <t-select
             v-model="createFormData.architecture"
-            placeholder="请选择架构"
+            placeholder="请选择分区"
           >
             <t-option
               v-for="architecture in availableArchitectures"
@@ -207,7 +207,15 @@
         </t-form-item>
 
         <t-form-item label="Nvidia GPU" name="gpuRequest">
-          <t-input-number v-model="createFormData.gpuRequest" :min="0" />
+          <t-tooltip
+            :content="nvidiaRequestEnabled ? '' : '分区需要为 x86_amd 或 gpu'"
+          >
+            <t-input-number
+              v-model="createFormData.gpuRequest"
+              :min="0"
+              :disabled="!nvidiaRequestEnabled"
+            />
+          </t-tooltip>
         </t-form-item>
 
         <t-form-item label="Ascend910" name="ascend910Request">
@@ -296,7 +304,8 @@ const availableArchitectures = computed(() => {
     return ["x86", "x86_amd", "arm", "gpu", "npu", "npu_inf"];
   if (x86OnlyImages.value.includes(createFormData.value.image))
     return ["x86", "x86_amd", "gpu"];
-  if (armOnlyImages.value.includes(createFormData.value.image)) return ["arm", "npu", "npu_inf"];
+  if (armOnlyImages.value.includes(createFormData.value.image))
+    return ["arm", "npu", "npu_inf"];
   return ["x86", "x86_amd", "arm", "gpu", "npu", "npu_inf"];
 });
 
@@ -304,6 +313,10 @@ watch(availableArchitectures, (newVal) => {
   if (newVal.includes(createFormData.value.architecture)) return;
   createFormData.value.architecture = newVal[0];
 });
+
+const nvidiaRequestEnabled = computed(() =>
+  ["gpu", "x86_amd"].includes(createFormData.value.architecture)
+);
 
 // 表单验证规则
 const createFormRules = {
@@ -422,14 +435,17 @@ const handleCreate = async ({ validateResult }) => {
                   .filter((x) => x),
                 resources: {
                   requests: {
-                    "nvidia.com/gpu": createFormData.value.gpuRequest,
                     "huawei.com/Ascend910":
                       createFormData.value.ascend910Request,
                     "huawei.com/Ascend310P":
                       createFormData.value.ascend310PRequest,
+                    ...(nvidiaRequestEnabled.value
+                      ? {
+                          "nvidia.com/gpu": createFormData.value.gpuRequest,
+                        }
+                      : {}),
                   },
                   limits: {
-                    "nvidia.com/gpu": createFormData.value.gpuRequest,
                     "huawei.com/Ascend910":
                       createFormData.value.ascend910Request,
                     "huawei.com/Ascend310P":
@@ -437,6 +453,11 @@ const handleCreate = async ({ validateResult }) => {
                     "rdma.hpc.lcpu.dev/hca_cx5": createFormData.value.rdma
                       ? 1
                       : 0,
+                    ...(nvidiaRequestEnabled.value
+                      ? {
+                          "nvidia.com/gpu": createFormData.value.gpuRequest,
+                        }
+                      : {}),
                   },
                 },
                 volumeMounts: [],
