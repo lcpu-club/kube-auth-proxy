@@ -273,7 +273,7 @@ const queryNumber = (key, init = 0) =>
     : init;
 
 // 创建 Job 的对话框状态
-const createDialogVisible = ref("name" in route.query);
+const createDialogVisible = ref(false);
 
 // 创建 Job 的表单数据
 const createFormDataFactory = () => ({
@@ -562,6 +562,7 @@ const getStatusTheme = (status) => {
 // 组件挂载时获取数据
 onMounted(async () => {
   await client.ensureUsername();
+  if ("name" in route.query) showCreateDialog();
   router.replace({ ...route, query: {} });
   fetchJobs();
 });
