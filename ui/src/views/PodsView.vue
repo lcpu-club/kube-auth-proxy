@@ -546,7 +546,7 @@ const handleCreate = async ({ validateResult }) => {
       podYAML.spec.containers[0].resources.requests.memory =
         createFormData.value.memoryRequest;
       podYAML.spec.containers[0].resources.limits.memory =
-        createFormData.value.memoryLimit;
+        createFormData.value.memoryRequest;
     }
 
     // 添加 PVC 挂载
