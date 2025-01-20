@@ -175,7 +175,10 @@
 
         <!-- 标签 -->
         <t-form-item label="标签" name="labels">
-          <t-input v-model="createFormData.labels" placeholder="a=b, c=d" />
+          <t-input
+            v-model="createFormData.labels"
+            placeholder="a=b, c=d（此处写入podYAML.metadata.labels，无需指定 GPU 标签）"
+          />
         </t-form-item>
 
         <!-- 注解：LXCFS -->
@@ -210,7 +213,7 @@
 
         <t-form-item label="Nvidia GPU" name="gpuRequest">
           <t-tooltip
-            :content="nvidiaRequestEnabled ? '' : '分区需要为 x86_amd 或 gpu'"
+            :content="nvidiaRequestEnabled ? '' : '分区需要为 x86_amd 或 gpu-*'"
           >
             <t-input-number
               v-model="createFormData.gpuRequest"
@@ -376,7 +379,7 @@ const createDialogVisible = ref(false);
 const createFormDataFactory = () => ({
   name: queryString("name", ""),
   image: queryString("image", ""),
-  architecture: queryString("architecture", "x86"),
+  architecture: queryString("architecture", "x86_amd"),
   command: queryString("command", "sleep"),
   args: queryString("args", "inf"),
   pvc: queryString("pvc", ""),
@@ -396,12 +399,12 @@ const createFormData = ref(createFormDataFactory());
 const availableArchitectures = computed(() => {
   if (createFormData.value.image === "vanity") return ["x86_amd", "x86"];
   if (commonImages.value.includes(createFormData.value.image))
-    return ["x86_amd", "x86", "arm", "gpu", "npu", "npu_inf"];
+    return ["x86_amd", "x86", "arm", "gpu-a800", "gpu-l40", "npu", "npu_inf"];
   if (x86OnlyImages.value.includes(createFormData.value.image))
-    return ["x86_amd", "x86", "gpu"];
+    return ["x86_amd", "x86", "gpu-a800", "gpu-l40"];
   if (armOnlyImages.value.includes(createFormData.value.image))
     return ["arm", "npu", "npu_inf"];
-  return ["x86_amd", "x86", "arm", "gpu", "npu", "npu_inf"];
+  return ["x86_amd", "x86", "arm", "gpu-a800", "gpu-l40", "npu", "npu_inf"];
 });
 
 watch(availableArchitectures, (newVal) => {
@@ -410,7 +413,7 @@ watch(availableArchitectures, (newVal) => {
 });
 
 const nvidiaRequestEnabled = computed(() =>
-  ["gpu", "x86_amd"].includes(createFormData.value.architecture)
+  ["gpu-a800", "gpu-l40", "x86_amd"].includes(createFormData.value.architecture)
 );
 
 // 表单验证规则
@@ -496,7 +499,18 @@ const handleCreate = async ({ validateResult }) => {
       },
       spec: {
         nodeSelector: {
-          "hpc.lcpu.dev/partition": createFormData.value.architecture,
+          ...(["gpu-a800", "gpu-l40"].includes(
+            createFormData.value.architecture
+          )
+            ? {
+                "nvidia.com/gpu.product":
+                  createFormData.value.architecture === "gpu-a800"
+                    ? "NVIDIA-A800-80GB-PCIe-MIG-2g.20gb-SHARED"
+                    : "NVIDIA-L40-SHARED",
+              }
+            : {
+                "hpc.lcpu.dev/partition": createFormData.value.architecture,
+              }),
         },
         containers: [
           {
