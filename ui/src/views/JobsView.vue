@@ -260,6 +260,7 @@ const images = computed(() => [
   ...commonImages.value,
   ...x86OnlyImages.value,
   ...armOnlyImages.value,
+  "vanity",
 ]);
 
 const route = useRoute();
@@ -300,13 +301,14 @@ const createFormDataFactory = () => ({
 const createFormData = ref(createFormDataFactory());
 
 const availableArchitectures = computed(() => {
+  if (createFormData.value.image === "vanity") return ["x86_amd", "x86"];
   if (commonImages.value.includes(createFormData.value.image))
-    return ["x86", "x86_amd", "arm", "gpu", "npu", "npu_inf"];
+    return ["x86_amd", "x86", "arm", "gpu", "npu", "npu_inf"];
   if (x86OnlyImages.value.includes(createFormData.value.image))
-    return ["x86", "x86_amd", "gpu"];
+    return ["x86_amd", "x86", "gpu"];
   if (armOnlyImages.value.includes(createFormData.value.image))
     return ["arm", "npu", "npu_inf"];
-  return ["x86", "x86_amd", "arm", "gpu", "npu", "npu_inf"];
+  return ["x86_amd", "x86", "arm", "gpu", "npu", "npu_inf"];
 });
 
 watch(availableArchitectures, (newVal) => {
