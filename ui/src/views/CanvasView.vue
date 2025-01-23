@@ -215,7 +215,7 @@ watch(WIDTH_PX, updateCanvas, { flush: "post" });
       type="range"
       v-model="SCALING_RATIO"
       min="1"
-      max="32"
+      max="16"
     />
     <label id="scaling-ratio-label">Scaling Ratio: {{ SCALING_RATIO }}x</label>
   </div>
