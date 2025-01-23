@@ -81,8 +81,8 @@ const updateCanvas = () => {
 
 const handleCanvasScroll = (e: WheelEvent) => {
   SCALING_RATIO.value = Math.min(
-    16,
-    Math.max(1, SCALING_RATIO.value + e.deltaY / 500)
+    32,
+    Math.max(1, SCALING_RATIO.value + (e.deltaY / 100) * SCALING_RATIO.value / 10)
   );
   showDetails.value = false;
   showDetailsCloseHint.value = false;
@@ -280,11 +280,9 @@ watch(WIDTH_PX, updateCanvas, { flush: "post" });
       type="range"
       v-model="SCALING_RATIO"
       :min="1"
-      :max="16"
+      :max="32"
     />
-    <label id="scaling-ratio-label"
-      >Scaling Ratio: {{ SCALING_RATIO }}x</label
-    >
+    <label id="scaling-ratio-label">Scaling Ratio: {{ SCALING_RATIO }}x</label>
   </div>
 
   <Transition>
