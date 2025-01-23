@@ -16,12 +16,24 @@ const changeHandler = (active: string) => {
         <h1>Loading...</h1>
       </main>
     </template>
-    <div style="display: flex; height: 100%; width: 100%">
+    <div
+      style="
+        display: grid;
+        grid-template-columns: auto 1fr;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+      "
+    >
       <div class="box">
         <t-menu
           theme="light"
           @change="changeHandler"
-          style="margin-right: 40px"
+          :style="{
+            ...(route.path !== '/canvas/' && route.path !== '/canvas'
+              ? { marginRight: '40px' }
+              : {}),
+          }"
           :value="route.path"
         >
           <template #logo>
@@ -41,9 +53,10 @@ const changeHandler = (active: string) => {
             >
             <t-menu-item value="/config/sshkeypair/">SSHKeyPair</t-menu-item>
           </t-submenu>
+          <t-menu-item value="/canvas/">画板</t-menu-item>
         </t-menu>
       </div>
-      <div style="flex: 1">
+      <div style="overflow: scroll">
         <RouterView />
       </div>
     </div>
