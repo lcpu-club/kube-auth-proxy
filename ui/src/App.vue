@@ -30,7 +30,10 @@ const changeHandler = (active: string) => {
           theme="light"
           @change="changeHandler"
           :style="{
-            ...(route.path !== '/canvas/' && route.path !== '/canvas'
+            ...(route.path !== '/canvas/' &&
+            route.path !== '/canvas' &&
+            route.path !== '/webterm/' &&
+            route.path !== '/webterm'
               ? { marginRight: '40px' }
               : {}),
           }"
@@ -56,7 +59,7 @@ const changeHandler = (active: string) => {
           <t-menu-item value="/canvas/">画板</t-menu-item>
         </t-menu>
       </div>
-      <div style="overflow: scroll">
+      <div style="overflow: scroll; position: relative">
         <RouterView />
       </div>
     </div>

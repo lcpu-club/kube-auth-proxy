@@ -16,9 +16,11 @@ const baseUrl = `${
   currentHost.includes("localhost") ? "http" : "https"
 }://${currentHost}`;
 
-const WIDTH_PX = ref(800);
-const HEIGHT_PX = ref(600);
-const SCALING_RATIO = ref(1);
+const canvasWidth = ref(800);
+const canvasHeight = ref(600);
+const canvasScalingRatio = ref(1);
+
+const scrollingCofficient = navigator.userAgent.includes("Macintosh") || navigator.userAgent.includes("Mac OS X") ? 1 : -1;
 
 const showDetails = ref(false);
 const showDetailsCloseHint = ref(true);
@@ -76,16 +78,31 @@ const updateCanvas = () => {
 
   context.imageSmoothingEnabled = false;
   context.clearRect(0, 0, canvas.value?.width ?? 0, canvas.value?.height ?? 0);
-  context.drawImage(imageBitmap, 0, 0, WIDTH_PX.value, HEIGHT_PX.value);
+  context.drawImage(imageBitmap, 0, 0, canvasWidth.value, canvasHeight.value);
 };
 
 const handleCanvasScroll = (e: WheelEvent) => {
-  SCALING_RATIO.value = Math.min(
+  const initialScalingRatio = canvasScalingRatio.value;
+  canvasScalingRatio.value = Math.min(
     32,
-    Math.max(1, SCALING_RATIO.value + (e.deltaY / 100) * SCALING_RATIO.value / 10)
+    Math.max(
+      0.5,
+      canvasScalingRatio.value +
+        ((e.deltaY / 100) * canvasScalingRatio.value) / 10 * scrollingCofficient
+    )
   );
   showDetails.value = false;
   showDetailsCloseHint.value = false;
+  const rect = canvas.value?.getBoundingClientRect();
+  if (!rect) return;
+  const centerX = rect.x + rect.width / 2;
+  const centerY = rect.y + rect.height / 2;
+  const offsetX = (centerX - e.clientX) / initialScalingRatio;
+  const offsetY = (centerY - e.clientY) / initialScalingRatio;
+  canvasTranslateX.value +=
+    offsetX * (canvasScalingRatio.value - initialScalingRatio);
+  canvasTranslateY.value +=
+    offsetY * (canvasScalingRatio.value - initialScalingRatio);
 };
 
 const handleKeyPress = (e: KeyboardEvent) => {
@@ -118,8 +135,12 @@ const placeDetailsElement = (mouseX: number, mouseY: number) => {
 const handleCanvasClicked = async (e: MouseEvent) => {
   if (isCameraMoving.value || !detailsElement.value) return;
   const rect = canvas.value?.getBoundingClientRect();
-  const x = Math.floor((e.clientX - (rect?.left ?? 0)) / SCALING_RATIO.value);
-  const y = Math.floor((e.clientY - (rect?.top ?? 0)) / SCALING_RATIO.value);
+  const x = Math.floor(
+    (e.clientX - (rect?.left ?? 0)) / canvasScalingRatio.value
+  );
+  const y = Math.floor(
+    (e.clientY - (rect?.top ?? 0)) / canvasScalingRatio.value
+  );
   detailsCoords.value = { x, y };
   details.value = undefined;
   placeDetailsElement(e.clientX, e.clientY);
@@ -163,8 +184,8 @@ onMounted(async () => {
       await fetch(`${baseUrl}/kube/_/painter/board/`)
     ).blob();
     imageBitmap = await createImageBitmap(image);
-    HEIGHT_PX.value = imageBitmap.height;
-    WIDTH_PX.value = imageBitmap.width;
+    canvasHeight.value = imageBitmap.height;
+    canvasWidth.value = imageBitmap.width;
     updateCanvas();
     document.addEventListener("keydown", handleKeyPress);
   } catch (e) {
@@ -186,11 +207,9 @@ const handleCameraMove = (e: MouseEvent) => {
   isCameraMoving.value = true;
   showDetails.value = false;
   canvasTranslateX.value =
-    initialCanvasTranslateX +
-    (e.clientX - beginMoveEvent.clientX) / SCALING_RATIO.value;
+    initialCanvasTranslateX + (e.clientX - beginMoveEvent.clientX);
   canvasTranslateY.value =
-    initialCanvasTranslateY +
-    (e.clientY - beginMoveEvent.clientY) / SCALING_RATIO.value;
+    initialCanvasTranslateY + (e.clientY - beginMoveEvent.clientY);
 };
 
 const handleCameraMoveBegin = (e: MouseEvent) => {
@@ -226,11 +245,9 @@ const handleCameraMoveTouch = (e: TouchEvent) => {
   showDetails.value = false;
   const touch = e.touches[0];
   canvasTranslateX.value =
-    initialCanvasTranslateX +
-    (touch.clientX - beginMoveEvent.clientX) / SCALING_RATIO.value;
+    initialCanvasTranslateX + (touch.clientX - beginMoveEvent.clientX);
   canvasTranslateY.value =
-    initialCanvasTranslateY +
-    (touch.clientY - beginMoveEvent.clientY) / SCALING_RATIO.value;
+    initialCanvasTranslateY + (touch.clientY - beginMoveEvent.clientY);
 };
 
 const handleCameraMoveEndTouch = (e: TouchEvent) => {
@@ -241,8 +258,8 @@ const handleCameraMoveEndTouch = (e: TouchEvent) => {
   }, 100);
 };
 
-watch(HEIGHT_PX, updateCanvas, { flush: "post" });
-watch(WIDTH_PX, updateCanvas, { flush: "post" });
+watch(canvasHeight, updateCanvas, { flush: "post" });
+watch(canvasWidth, updateCanvas, { flush: "post" });
 </script>
 
 <template>
@@ -253,23 +270,22 @@ watch(WIDTH_PX, updateCanvas, { flush: "post" });
     @mousedown="handleCameraMoveBegin"
     @mouseup="handleCameraMoveEnd"
     @mouseleave="handleCameraMoveEnd"
-    @touchstart="handleCameraMoveBeginTouch"
-    @touchmove="handleCameraMoveTouch"
-    @touchcancel="handleCameraMoveEndTouch"
-    @touchend="handleCameraMoveEndTouch"
+    @touchstart.prevent="handleCameraMoveBeginTouch"
+    @touchmove.prevent="handleCameraMoveTouch"
+    @touchcancel.prevent="handleCameraMoveEndTouch"
+    @touchend.prevent="handleCameraMoveEndTouch"
     ref="canvasWrapperRef"
     :style="{
-      transform: `scale(${SCALING_RATIO})`,
       cursor: isCameraMoving ? 'grabbing' : 'default',
     }"
   >
     <canvas
       ref="canvasRef"
-      :height="HEIGHT_PX"
-      :width="WIDTH_PX"
+      :height="canvasHeight"
+      :width="canvasWidth"
       @click="handleCanvasClicked"
       :style="{
-        transform: `translate(${canvasTranslateX}px, ${canvasTranslateY}px)`,
+        transform: `translate(${canvasTranslateX}px, ${canvasTranslateY}px) scale(${canvasScalingRatio})`,
       }"
     ></canvas>
   </div>
@@ -278,11 +294,14 @@ watch(WIDTH_PX, updateCanvas, { flush: "post" });
     <input
       id="scaling-ratio-slider"
       type="range"
-      v-model="SCALING_RATIO"
-      :min="1"
-      :max="32"
+      v-model.number="canvasScalingRatio"
+      min="0.5"
+      max="32"
+      step="0.5"
     />
-    <label id="scaling-ratio-label">Scaling Ratio: {{ SCALING_RATIO }}x</label>
+    <label id="scaling-ratio-label">
+      {{ (canvasScalingRatio * 100).toFixed(2) }}%</label
+    >
   </div>
 
   <Transition>
@@ -380,7 +399,7 @@ canvas {
 }
 
 #scaling-ratio-slider-wrapper {
-  position: fixed;
+  position: absolute;
   left: 0.5em;
   bottom: 0.5em;
   padding: 0.5em;
