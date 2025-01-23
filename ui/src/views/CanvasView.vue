@@ -98,7 +98,6 @@ const handleCanvasScroll = (e: WheelEvent) => {
     )
   );
   showDetails.value = false;
-  showDetailsCloseHint.value = false;
   const rect = canvas.value?.getBoundingClientRect();
   if (!rect) return;
   const centerX = rect.x + rect.width / 2;
