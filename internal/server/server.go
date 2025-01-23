@@ -80,6 +80,7 @@ func (s *Server) Init() (err error) {
 
 	s.oauthInit()
 	s.initToken()
+	s.initPainterProxy()
 	s.mux.Handle("/_/whoami", http.HandlerFunc(s.handleWhoAmI))
 
 	s.mux.Handle("/_/ui/", http.StripPrefix("/_/ui/", http.FileServer(http.Dir(*s.conf.UIDistPath))))
