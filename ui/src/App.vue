@@ -59,7 +59,7 @@ const changeHandler = (active: string) => {
           <t-menu-item value="/canvas/">画板</t-menu-item>
         </t-menu>
       </div>
-      <div style="overflow: scroll; position: relative">
+      <div style="position: relative">
         <RouterView />
       </div>
     </div>
