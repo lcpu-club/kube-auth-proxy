@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { getToken } from "@/api/token";
+import { ScaleIcon } from "@heroicons/vue/24/outline";
 import {
   onMounted,
   useTemplateRef,
@@ -17,10 +18,7 @@ const baseUrl = `${
 
 const WIDTH_PX = ref(800);
 const HEIGHT_PX = ref(600);
-const SCALING_RATIO = ref(2);
-
-const canvasHeight = computed(() => HEIGHT_PX.value * SCALING_RATIO.value);
-const canvasWidth = computed(() => WIDTH_PX.value * SCALING_RATIO.value);
+const SCALING_RATIO = ref(1);
 
 const showDetails = ref(false);
 const showDetailsCloseHint = ref(true);
@@ -57,9 +55,17 @@ const detailsColorUnderlineStyle = computed<CSSProperties>(() => {
     textUnderlineOffset: "-0.1em",
   };
 });
+
+const canvasTranslateX = ref(0);
+const canvasTranslateY = ref(0);
+
 let context: CanvasRenderingContext2D | null | undefined;
 
 let imageBitmap: ImageBitmap | null = null;
+let cameraMove = false;
+let isCameraMoving = ref(false);
+let initialCanvasTranslateX = 0;
+let initialCanvasTranslateY = 0;
 
 const updateCanvas = () => {
   if (!context) {
@@ -70,16 +76,14 @@ const updateCanvas = () => {
 
   context.imageSmoothingEnabled = false;
   context.clearRect(0, 0, canvas.value?.width ?? 0, canvas.value?.height ?? 0);
-  context.drawImage(
-    imageBitmap,
-    0,
-    0,
-    WIDTH_PX.value * SCALING_RATIO.value,
-    HEIGHT_PX.value * SCALING_RATIO.value
-  );
+  context.drawImage(imageBitmap, 0, 0, WIDTH_PX.value, HEIGHT_PX.value);
 };
 
-const handleCanvasScroll = () => {
+const handleCanvasScroll = (e: WheelEvent) => {
+  SCALING_RATIO.value = Math.min(
+    16,
+    Math.max(1, SCALING_RATIO.value + e.deltaY / 500)
+  );
   showDetails.value = false;
   showDetailsCloseHint.value = false;
 };
@@ -112,7 +116,7 @@ const placeDetailsElement = (mouseX: number, mouseY: number) => {
 };
 
 const handleCanvasClicked = async (e: MouseEvent) => {
-  if (!detailsElement.value) return;
+  if (isCameraMoving.value || !detailsElement.value) return;
   const rect = canvas.value?.getBoundingClientRect();
   const x = Math.floor((e.clientX - (rect?.left ?? 0)) / SCALING_RATIO.value);
   const y = Math.floor((e.clientY - (rect?.top ?? 0)) / SCALING_RATIO.value);
@@ -175,37 +179,98 @@ onUnmounted(() => {
   document.removeEventListener("keydown", handleKeyPress);
 });
 
-watch(
-  SCALING_RATIO,
-  (newVal, oldVal) => {
-    showDetails.value = false;
-    const rect = canvas.value?.getBoundingClientRect();
-    const wrapperRect = canvasWrapper.value?.getBoundingClientRect();
-    if (!rect || !wrapperRect) updateCanvas();
-    else {
-      const currentCenterX =
-        (-rect.left + wrapperRect.left + wrapperRect.width / 2) / oldVal;
-      const currentCenterY =
-        (-rect.top + wrapperRect.top + wrapperRect.height / 2) / oldVal;
-      const newRectX = currentCenterX * newVal - wrapperRect.width / 2;
-      const newRectY = currentCenterY * newVal - wrapperRect.height / 2;
-      canvasWrapper.value?.scrollTo(newRectX, newRectY);
-      updateCanvas();
-    }
-  },
-  { flush: "post" } // so that the canvas is updated after canvas has been resized
-);
+let beginMoveEvent: MouseEvent | null = null;
+
+const handleCameraMove = (e: MouseEvent) => {
+  if (!cameraMove || !canvasWrapper.value || !beginMoveEvent) return;
+  isCameraMoving.value = true;
+  showDetails.value = false;
+  canvasTranslateX.value =
+    initialCanvasTranslateX +
+    (e.clientX - beginMoveEvent.clientX) / SCALING_RATIO.value;
+  canvasTranslateY.value =
+    initialCanvasTranslateY +
+    (e.clientY - beginMoveEvent.clientY) / SCALING_RATIO.value;
+};
+
+const handleCameraMoveBegin = (e: MouseEvent) => {
+  cameraMove = true;
+  beginMoveEvent = e;
+  initialCanvasTranslateX = canvasTranslateX.value;
+  initialCanvasTranslateY = canvasTranslateY.value;
+};
+
+const handleCameraMoveEnd = (e: MouseEvent) => {
+  cameraMove = false;
+  beginMoveEvent = null;
+  setTimeout(() => {
+    isCameraMoving.value = false;
+  }, 100);
+};
+
+const handleCameraMoveBeginTouch = (e: TouchEvent) => {
+  if (e.touches.length !== 1) return;
+  const touch = e.touches[0];
+  cameraMove = true;
+  beginMoveEvent = new MouseEvent("mousedown", {
+    clientX: touch.clientX,
+    clientY: touch.clientY,
+  });
+  initialCanvasTranslateX = canvasTranslateX.value;
+  initialCanvasTranslateY = canvasTranslateY.value;
+};
+
+const handleCameraMoveTouch = (e: TouchEvent) => {
+  if (!cameraMove || !canvasWrapper.value || !beginMoveEvent) return;
+  isCameraMoving.value = true;
+  showDetails.value = false;
+  const touch = e.touches[0];
+  canvasTranslateX.value =
+    initialCanvasTranslateX +
+    (touch.clientX - beginMoveEvent.clientX) / SCALING_RATIO.value;
+  canvasTranslateY.value =
+    initialCanvasTranslateY +
+    (touch.clientY - beginMoveEvent.clientY) / SCALING_RATIO.value;
+};
+
+const handleCameraMoveEndTouch = (e: TouchEvent) => {
+  cameraMove = false;
+  beginMoveEvent = null;
+  setTimeout(() => {
+    isCameraMoving.value = false;
+  }, 100);
+};
+
 watch(HEIGHT_PX, updateCanvas, { flush: "post" });
 watch(WIDTH_PX, updateCanvas, { flush: "post" });
 </script>
 
 <template>
-  <div id="canvas-wrapper" @scroll="handleCanvasScroll" ref="canvasWrapperRef">
+  <div
+    id="canvas-wrapper"
+    @wheel.prevent="handleCanvasScroll"
+    @mousemove="handleCameraMove"
+    @mousedown="handleCameraMoveBegin"
+    @mouseup="handleCameraMoveEnd"
+    @mouseleave="handleCameraMoveEnd"
+    @touchstart="handleCameraMoveBeginTouch"
+    @touchmove="handleCameraMoveTouch"
+    @touchcancel="handleCameraMoveEndTouch"
+    @touchend="handleCameraMoveEndTouch"
+    ref="canvasWrapperRef"
+    :style="{
+      transform: `scale(${SCALING_RATIO})`,
+      cursor: isCameraMoving ? 'grabbing' : 'default',
+    }"
+  >
     <canvas
       ref="canvasRef"
-      :height="canvasHeight"
-      :width="canvasWidth"
+      :height="HEIGHT_PX"
+      :width="WIDTH_PX"
       @click="handleCanvasClicked"
+      :style="{
+        transform: `translate(${canvasTranslateX}px, ${canvasTranslateY}px)`,
+      }"
     ></canvas>
   </div>
 
@@ -214,10 +279,12 @@ watch(WIDTH_PX, updateCanvas, { flush: "post" });
       id="scaling-ratio-slider"
       type="range"
       v-model="SCALING_RATIO"
-      min="1"
-      max="16"
+      :min="1"
+      :max="16"
     />
-    <label id="scaling-ratio-label">Scaling Ratio: {{ SCALING_RATIO }}x</label>
+    <label id="scaling-ratio-label"
+      >Scaling Ratio: {{ SCALING_RATIO }}x</label
+    >
   </div>
 
   <Transition>
@@ -294,10 +361,24 @@ watch(WIDTH_PX, updateCanvas, { flush: "post" });
 </template>
 
 <style scoped>
+canvas {
+  image-rendering: pixelated;
+  box-shadow: rgba(0, 0, 0, 0.25) 0px 25px 50px -12px;
+}
+
 #canvas-wrapper {
+  position: relative;
   height: 100vh;
-  width: 100%;
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-image: linear-gradient(45deg, #f3f3f3 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #f3f3f3 75%),
+    linear-gradient(135deg, #f3f3f3 25%, transparent 25%),
+    linear-gradient(135deg, transparent 75%, #f3f3f3 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
 }
 
 #scaling-ratio-slider-wrapper {
@@ -312,7 +393,6 @@ watch(WIDTH_PX, updateCanvas, { flush: "post" });
   border: 2px solid rgba(0, 0, 0, 0.1);
   box-shadow: rgba(0, 0, 0, 0.1) 0px 20px 25px -5px,
     rgba(0, 0, 0, 0.04) 0px 10px 10px -5px;
-  cursor: grab;
 }
 
 #scaling-ratio-label {
