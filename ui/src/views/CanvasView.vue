@@ -19,7 +19,11 @@ const canvasWidth = ref(800);
 const canvasHeight = ref(600);
 const canvasScalingRatio = ref(1);
 
-const scrollingCofficient = navigator.userAgent.includes("Macintosh") || navigator.userAgent.includes("Mac OS X") ? 1 : -1;
+const scrollingCofficient =
+  navigator.userAgent.includes("Macintosh") ||
+  navigator.userAgent.includes("Mac OS X")
+    ? 1
+    : -1;
 
 const showDetails = ref(false);
 const showDetailsCloseHint = ref(true);
@@ -87,7 +91,10 @@ const handleCanvasScroll = (e: WheelEvent) => {
     Math.max(
       0.5,
       canvasScalingRatio.value +
-        ((e.deltaY / 100) * canvasScalingRatio.value) / 10 * scrollingCofficient
+        (e.ctrlKey // zoom gesture
+          ? -e.deltaY / 30
+          : (((e.deltaY / 100) * canvasScalingRatio.value) / 10) *
+            scrollingCofficient)
     )
   );
   showDetails.value = false;
