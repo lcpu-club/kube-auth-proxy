@@ -32,7 +32,7 @@ const details = ref<{
 
 const detailsTimestamp = computed(() => {
   if (!details.value) return "";
-  return new Date(details.value.last_updated).toLocaleString("zh-cn", {
+  return new Date(details.value.last_updated * 1000).toLocaleString("zh-cn", {
     year: undefined,
     month: "short",
     day: "numeric",
@@ -245,7 +245,7 @@ watch(WIDTH_PX, updateCanvas, { flush: "post" });
           <span class="details-title">Owner</span>
           <span class="details-content">{{ details.owner }}</span>
         </div>
-        <div>
+        <div v-if="details.last_updated">
           <span class="details-title">Last updated</span>
           <span class="details-content">{{ detailsTimestamp }}</span>
         </div>
@@ -281,8 +281,10 @@ watch(WIDTH_PX, updateCanvas, { flush: "post" });
           <span class="details-title">Owner</span>
           <span class="details-content">{{ details.owner }}</span>
         </div>
-        <span class="details-title">Last updated</span>
-        <span class="details-content">detailsTimestamp</span>
+        <div v-if="details.last_updated">
+          <span class="details-title">Last updated</span>
+          <span class="details-content">detailsTimestamp</span>
+        </div>
       </div>
       <span class="details-close-hint" v-if="showDetailsCloseHint"
         >Press escape to omit.</span
