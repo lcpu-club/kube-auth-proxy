@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { getToken } from "@/api/token";
-import { ScaleIcon } from "@heroicons/vue/24/outline";
 import {
   onMounted,
   useTemplateRef,
@@ -314,9 +313,9 @@ watch(canvasWidth, updateCanvas, { flush: "post" });
       </div>
       <div v-else>
         <div>
-          <span class="details-title">Coordinates</span>
+          <span class="details-title">Coordinates (x, y)</span>
           <span class="details-content"
-            >({{ detailsCoords.y }}, {{ detailsCoords.x }})</span
+            >({{ detailsCoords.x }}, {{ detailsCoords.y }})</span
           >
         </div>
         <div>
@@ -349,9 +348,9 @@ watch(canvasWidth, updateCanvas, { flush: "post" });
     </div>
     <div v-else>
       <div>
-        <span class="details-title">Coordinates</span>
+        <span class="details-title">Coordinates (x, y)</span>
         <span class="details-content"
-          >({{ detailsCoords.y }}, {{ detailsCoords.x }})</span
+          >({{ detailsCoords.x }}, {{ detailsCoords.y }})</span
         >
       </div>
       <div>
