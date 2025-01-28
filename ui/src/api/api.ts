@@ -45,8 +45,7 @@ class Client {
       console.error(e);
       // TODO: Better handling
       // alert("Failed to fetch " + url);
-      if (e.message)
-        MessagePlugin.error(e.message);
+      if (e.message) MessagePlugin.error(e.message);
       throw e;
     }
   }
@@ -106,17 +105,22 @@ class Client {
   async ensureUsername() {
     if (!getToken()) window.location.href = "../oauth/redirect";
     if (this.username) return;
-    
-    const userInfo = await (
-      await this.req(
-        "/_/whoami",
-        {
-          method: "GET",
-        },
-        true
-      )
-    ).json();
-    this.username = userInfo.username;
+
+    try {
+      const userInfo = await (
+        await this.req(
+          "/_/whoami",
+          {
+            method: "GET",
+          },
+          true
+        )
+      ).json();
+      this.username = userInfo.username;
+    } catch (e) {
+      console.error(e);
+      window.location.href = "../oauth/redirect";
+    }
   }
 }
 
