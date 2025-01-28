@@ -80,7 +80,7 @@
       </tr>
     </table>
 
-    <span class="font-sm text-gray block" style="margin-top: 2em;">*未整理的数据，存在偏差。</span>
+    <span class="font-sm text-gray block" style="margin-top: 2em;">*未整理的数据，存在偏差。用户名数据截至 2025/1/28 11:00。</span>
   </main>
 </template>
 
