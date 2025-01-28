@@ -30,8 +30,8 @@ const changeHandler = (active: string) => {
           theme="light"
           @change="changeHandler"
           :style="{
-            ...(route.path !== '/canvas/' &&
-            route.path !== '/canvas' &&
+            ...(route.path !== '/canvas/preview/' &&
+            route.path !== '/canvas/preview' &&
             route.path !== '/webterm/' &&
             route.path !== '/webterm'
               ? { marginRight: '40px' }
@@ -48,7 +48,7 @@ const changeHandler = (active: string) => {
           <t-menu-item value="/pods/">容器（Pods）</t-menu-item>
           <t-menu-item value="/storage/">储存管理</t-menu-item>
           <t-menu-item value="/tokens/">令牌管理</t-menu-item>
-          <t-submenu title="配置管理">
+          <t-submenu title="配置管理" value="config">
             <t-menu-item value="/config/configmap/">ConfigMap</t-menu-item>
             <t-menu-item value="/config/secret/">Secret</t-menu-item>
             <t-menu-item value="/config/sshauthkey/"
@@ -56,7 +56,10 @@ const changeHandler = (active: string) => {
             >
             <t-menu-item value="/config/sshkeypair/">SSHKeyPair</t-menu-item>
           </t-submenu>
-          <t-menu-item value="/canvas/">画板</t-menu-item>
+          <t-submenu title="画板" value="canvas">
+            <t-menu-item value="/canvas/preview">预览</t-menu-item>
+            <t-menu-item value="/canvas/stats">统计数据</t-menu-item>
+          </t-submenu>
         </t-menu>
       </div>
       <div style="position: relative">
