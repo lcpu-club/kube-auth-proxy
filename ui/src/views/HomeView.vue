@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { client } from "@/api/api";
+import { client } from "@/api/client";
 import { getToken, hasToken } from "@/api/token";
 import { RouterLink, useRouter } from "vue-router";
 import {

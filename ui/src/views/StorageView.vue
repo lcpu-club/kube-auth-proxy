@@ -121,7 +121,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from "vue";
 import { MessagePlugin } from "tdesign-vue-next";
-import { client } from "@/api/api";
+import { client } from "@/api/client";
 
 let apiRoot = "/api/v1/namespaces/{!NAMESPACE}";
 

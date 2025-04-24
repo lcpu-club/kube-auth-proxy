@@ -84,7 +84,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { MessagePlugin } from "tdesign-vue-next";
-import { client } from "@/api/api";
+import { client } from "@/api/client";
 
 // SSHAuthorizedKey 数据
 const sshAuthorizedKeys = ref([]);

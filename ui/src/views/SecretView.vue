@@ -118,7 +118,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { MessagePlugin } from "tdesign-vue-next";
-import { client } from "@/api/api";
+import { client } from "@/api/client";
 
 // Secret 数据
 const secrets = ref([]);

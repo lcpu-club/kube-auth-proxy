@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { client } from "@/api/api";
+import { client } from "@/api/client";
 import { onMounted, ref } from "vue";
 import { MessagePlugin } from "tdesign-vue-next";
 

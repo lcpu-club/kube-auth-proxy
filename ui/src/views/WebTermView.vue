@@ -7,7 +7,7 @@
 <script setup>
 import { onDeactivated, onMounted, useTemplateRef } from "vue";
 import { useRoute } from "vue-router";
-import { client } from "@/api/api";
+import { client } from "@/api/client";
 import { useToken } from "@/api/token";
 import { ref } from "vue";
 import { Terminal } from "xterm";
