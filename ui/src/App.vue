@@ -56,10 +56,10 @@ const changeHandler = (active: string) => {
             >
             <t-menu-item value="/config/sshkeypair/">SSHKeyPair</t-menu-item>
           </t-submenu>
-          <t-submenu title="画板" value="canvas">
+          <!-- <t-submenu title="画板" value="canvas">
             <t-menu-item value="/canvas/preview">预览</t-menu-item>
             <t-menu-item value="/canvas/stats">统计数据</t-menu-item>
-          </t-submenu>
+          </t-submenu> -->
         </t-menu>
       </div>
       <div style="position: relative">
