@@ -1,17 +1,25 @@
 <script setup lang="ts">
 import { client } from "@/api/api";
 import { getToken, hasToken } from "@/api/token";
-import { RouterLink } from "vue-router";
+import { RouterLink, useRouter } from "vue-router";
 import {
   ArrowLeftStartOnRectangleIcon,
   KeyIcon,
 } from "@heroicons/vue/24/outline";
 
+const router = useRouter();
+
 if (!getToken()) {
   window.location.href = "../oauth/redirect";
 }
-
-const userInfo = await (await client.get("/_/whoami")).json();
+let userInfo;
+try {
+  // fixes "Unexpected token 'i', "invalid token " is not valid JSON" caused
+  // by expired auth.
+  userInfo = await (await client.get("/_/whoami")).json();
+} catch {
+  router.replace({ name: "logout" });
+}
 </script>
 
 <template>
