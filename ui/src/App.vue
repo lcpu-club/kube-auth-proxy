@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
-import Logo from "@/assets/logo.svg";
+import { RouterView, useRoute, useRouter } from "vue-router";
 const router = useRouter();
 const route = useRoute();
 
@@ -40,8 +39,21 @@ const changeHandler = (active: string) => {
           :value="route.path"
         >
           <template #logo>
-            <img :src="Logo" alt="logo" style="height: 40px" />
-            <h2 style="margin: 0.5em">HPCGame</h2>
+            <a
+              href="/"
+              style="
+                height: 100%;
+                padding: 0.4em 0;
+                box-sizing: border-box;
+                justify-self: center;
+              "
+            >
+              <img
+                src="./assets/logo.svg"
+                alt="HPCGame Logo"
+                style="height: 100%"
+              />
+            </a>
           </template>
           <t-menu-item value="/">仪表盘</t-menu-item>
           <t-menu-item value="/jobs/">任务（Job）</t-menu-item>
