@@ -98,138 +98,7 @@
           />
         </t-form-item>
 
-        <!-- 容器镜像 -->
-        <t-form-item label="容器镜像" name="image">
-          <t-select
-            v-model="createFormData.image"
-            placeholder="请输入容器镜像"
-            creatable
-            filterable
-          >
-            <t-option
-              v-for="image in images"
-              :key="image"
-              :value="image"
-              :label="image"
-            />
-          </t-select>
-        </t-form-item>
-
-        <!-- 分区 -->
-        <t-form-item label="分区" name="architecture">
-          <t-select
-            v-model="createFormData.architecture"
-            placeholder="请选择分区"
-          >
-            <t-option
-              v-for="architecture in availableArchitectures"
-              :key="architecture"
-              :value="architecture"
-              :label="architecture"
-            />
-          </t-select>
-        </t-form-item>
-
-        <!-- 命令 -->
-        <t-form-item label="命令" name="command">
-          <t-input v-model="createFormData.command" placeholder="请输入命令" />
-        </t-form-item>
-
-        <!-- 参数 -->
-        <t-form-item label="参数" name="args">
-          <t-textarea
-            v-model="createFormData.args"
-            placeholder="请输入参数（以换行分割）"
-          />
-        </t-form-item>
-
-        <!-- PVC 选择 -->
-        <t-form-item label="挂载 PVC" name="pvc">
-          <t-select
-            v-model="createFormData.pvc"
-            placeholder="请选择 PVC"
-            clearable
-          >
-            <t-option
-              v-for="pvc in pvcs"
-              :key="pvc.metadata.name"
-              :value="pvc.metadata.name"
-              :label="pvc.metadata.name"
-            />
-          </t-select>
-        </t-form-item>
-
-        <!-- 挂载路径 -->
-        <t-form-item label="挂载路径" name="mountPath">
-          <t-select
-            v-model="createFormData.mountPath"
-            placeholder="请选择挂载路径"
-            creatable
-            filterable
-          >
-            <t-option value="/root" label="/root" />
-            <t-option value="/data" label="/data" />
-            <t-option value="/shared" label="/shared" />
-          </t-select>
-        </t-form-item>
-
-        <!-- 标签 -->
-        <t-form-item label="标签" name="labels">
-          <t-input
-            v-model="createFormData.labels"
-            placeholder="a=b, c=d（此处写入podYAML.metadata.labels，无需指定 GPU 标签）"
-          />
-        </t-form-item>
-
-        <!-- 注解：LXCFS -->
-        <t-form-item label="启用 LXCFS" name="lxcfsEnabled">
-          <t-switch v-model="createFormData.lxcfsEnabled" />
-        </t-form-item>
-
-        <!-- 注解：SSH Operator -->
-        <t-form-item label="启用 SSH 服务器" name="sshEnabled">
-          <t-switch v-model="createFormData.sshEnabled" />
-        </t-form-item>
-
-        <!-- RDMA -->
-        <t-form-item label="RDMA" name="rdma">
-          <t-switch v-model="createFormData.rdma" />
-        </t-form-item>
-
-        <!-- 资源请求和限制 -->
-        <t-form-item label="CPU" name="cpuRequest">
-          <t-input
-            v-model="createFormData.cpuRequest"
-            placeholder="例如：1000m"
-          />
-        </t-form-item>
-
-        <t-form-item label="内存" name="memoryRequest">
-          <t-input
-            v-model="createFormData.memoryRequest"
-            placeholder="例如：1Gi"
-          />
-        </t-form-item>
-
-        <t-form-item label="Nvidia GPU" name="gpuRequest">
-          <t-tooltip
-            :content="nvidiaRequestEnabled ? '' : '分区需要为 x86_amd 或 gpu-*'"
-          >
-            <t-input-number
-              v-model="createFormData.gpuRequest"
-              :min="0"
-              :disabled="!nvidiaRequestEnabled"
-            />
-          </t-tooltip>
-        </t-form-item>
-
-        <t-form-item label="Ascend910" name="ascend910Request">
-          <t-input-number v-model="createFormData.ascend910Request" :min="0" />
-        </t-form-item>
-
-        <t-form-item label="Ascend310P" name="ascend310PRequest">
-          <t-input-number v-model="createFormData.ascend310PRequest" :min="0" />
-        </t-form-item>
+        <PodOptions v-model="createFormData" :pvcs="pvcs" />
 
         <t-form-item>
           <t-button theme="primary" type="submit">创建</t-button>
@@ -302,11 +171,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed, watch } from "vue";
 import { MessagePlugin } from "tdesign-vue-next";
 import { client } from "@/api/client";
 import { useRouter, useRoute } from "vue-router";
+import PodOptions from "@/components/PodOptions.vue";
 
 let apiRoot = `/api/v1/namespaces/{!NAMESPACE}`;
 let username = "";
@@ -350,25 +220,13 @@ const logDialogVisible = ref(false);
 // 选择容器的对话框状态
 const selectContainerDialogVisible = ref(false);
 
-// 镜像列表
-const x86OnlyImages = ref(["intel", "cuda", "aocc"]);
-const armOnlyImages = ref(["hpckit"]);
-const commonImages = ref(["full", "llvm", "gcc", "nvhpc", "julia", "base"]);
-
-const images = computed(() => [
-  ...commonImages.value,
-  ...x86OnlyImages.value,
-  ...armOnlyImages.value,
-  "vanity",
-]);
-
 const route = useRoute();
 const queryString = (key, init = "") =>
   typeof route.query[key] === "string" ? route.query[key] : init;
 const queryBoolean = (key, init = false) =>
   typeof route.query[key] === "string" ? route.query[key] === "true" : init;
 const queryNumber = (key, init = 0) =>
-  typeof route.query[key] === "string" && isFinite(route.query[key])
+  typeof route.query[key] === "string" && isFinite(+route.query[key])
     ? +route.query[key]
     : init;
 
@@ -379,7 +237,7 @@ const createDialogVisible = ref(false);
 const createFormDataFactory = () => ({
   name: queryString("name", ""),
   image: queryString("image", ""),
-  architecture: queryString("architecture", "x86_amd"),
+  partition: queryString("partition", "x86_amd"),
   command: queryString("command", "sleep"),
   args: queryString("args", "inf"),
   pvc: queryString("pvc", ""),
@@ -388,39 +246,38 @@ const createFormDataFactory = () => ({
   lxcfsEnabled: queryBoolean("lxcfsEnabled", false),
   sshEnabled: queryBoolean("sshEnabled", true),
   rdma: queryBoolean("rdma", true),
-  cpuRequest: queryString("cpuRequest", ""),
-  memoryRequest: queryString("memoryRequest", ""),
-  gpuRequest: queryNumber("gpuRequest", 0),
-  ascend910Request: queryNumber("ascend910Request", 0),
-  ascend310PRequest: queryNumber("ascend310PRequest", 0),
+  cpuRequest: queryNumber("cpuRequest", 0),
+  memoryRequest: queryNumber("memoryRequest", 0),
+  gpuTag: queryString("gpuTag", undefined),
+  gpuRequest: queryNumber("gpuRequest", undefined),
 });
 const createFormData = ref(createFormDataFactory());
-
-const availableArchitectures = computed(() => {
-  if (createFormData.value.image === "vanity") return ["x86_amd", "x86"];
-  if (commonImages.value.includes(createFormData.value.image))
-    return ["x86_amd", "x86", "arm", "gpu-a800", "gpu-l40", "npu", "npu_inf"];
-  if (x86OnlyImages.value.includes(createFormData.value.image))
-    return ["x86_amd", "x86", "gpu-a800", "gpu-l40"];
-  if (armOnlyImages.value.includes(createFormData.value.image))
-    return ["arm", "npu", "npu_inf"];
-  return ["x86_amd", "x86", "arm", "gpu-a800", "gpu-l40", "npu", "npu_inf"];
-});
-
-watch(availableArchitectures, (newVal) => {
-  if (newVal.includes(createFormData.value.architecture)) return;
-  createFormData.value.architecture = newVal[0];
-});
-
-const nvidiaRequestEnabled = computed(() =>
-  ["gpu-a800", "gpu-l40", "x86_amd"].includes(createFormData.value.architecture)
-);
 
 // 表单验证规则
 const createFormRules = {
   name: [{ required: true, message: "Pod 名称不能为空" }],
   image: [{ required: true, message: "容器镜像不能为空" }],
-  architecture: [{ required: true, message: "架构不能为空" }],
+  partition: [{ required: true, message: "分区不能为空" }],
+  cpuRequest: [
+    {
+      validator: (val: string) => {
+        // 转换为数字类型进行比较
+        const numVal = val === "" ? 0 : Number(val);
+        // 返回true表示验证通过
+        return numVal > 0;
+      },
+      message: "CPU 请求必须大于 0",
+    },
+  ],
+  memoryRequest: [
+    {
+      validator: (val) => {
+        const numVal = val === "" ? 0 : Number(val);
+        return numVal > 0;
+      },
+      message: "内存请求必须大于 0",
+    },
+  ],
 };
 
 // 表格列配置
@@ -499,25 +356,13 @@ const handleCreate = async ({ validateResult }) => {
       },
       spec: {
         nodeSelector: {
-          ...(["gpu-a800", "gpu-l40"].includes(
-            createFormData.value.architecture
-          )
-            ? {
-                "nvidia.com/gpu.product":
-                  createFormData.value.architecture === "gpu-a800"
-                    ? "NVIDIA-A800-80GB-PCIe-MIG-2g.20gb-SHARED"
-                    : "NVIDIA-L40-SHARED",
-              }
-            : {
-                "hpc.lcpu.dev/partition": createFormData.value.architecture,
-              }),
+          "hpc.lcpu.dev/partition": createFormData.value.partition,
         },
         containers: [
           {
             name: createFormData.value.name,
-            image: images.value.includes(createFormData.value.image)
-              ? `crmirror.lcpu.dev/hpcgame/${createFormData.value.image}:latest`
-              : createFormData.value.image,
+            // FIXME: validate image
+            image: createFormData.value.image,
             command: createFormData.value.command.split(" "),
             args: createFormData.value.args
               .split("\n")
@@ -525,45 +370,31 @@ const handleCreate = async ({ validateResult }) => {
               .filter((x) => x),
             resources: {
               requests: {
-                "huawei.com/Ascend910": createFormData.value.ascend910Request,
-                "huawei.com/Ascend310P": createFormData.value.ascend310PRequest,
-                ...(nvidiaRequestEnabled.value
-                  ? {
-                      "nvidia.com/gpu": createFormData.value.gpuRequest,
-                    }
-                  : {}),
+                cpu: `${createFormData.value.cpuRequest * 1000}m`,
+                memory: `${createFormData.value.memoryRequest}Gi`,
+                ...(createFormData.value.gpuTag &&
+                  createFormData.value.gpuRequest && {
+                    [createFormData.value.gpuTag]:
+                      createFormData.value.gpuRequest,
+                  }),
               },
               limits: {
-                "huawei.com/Ascend910": createFormData.value.ascend910Request,
-                "huawei.com/Ascend310P": createFormData.value.ascend310PRequest,
+                cpu: `${createFormData.value.cpuRequest * 1000}m`,
+                memory: `${createFormData.value.memoryRequest}Gi`,
+                ...(createFormData.value.gpuTag &&
+                  createFormData.value.gpuRequest && {
+                    [createFormData.value.gpuTag]:
+                      createFormData.value.gpuRequest,
+                  }),
                 "rdma.hpc.lcpu.dev/hca_cx5": createFormData.value.rdma ? 1 : 0,
-                ...(nvidiaRequestEnabled.value
-                  ? {
-                      "nvidia.com/gpu": createFormData.value.gpuRequest,
-                    }
-                  : {}),
               },
             },
-            volumeMounts: [],
+            volumeMounts: [] as any[],
           },
         ],
-        volumes: [],
+        volumes: [] as any[],
       },
     };
-
-    if (createFormData.value.cpuRequest) {
-      podYAML.spec.containers[0].resources.requests.cpu =
-        createFormData.value.cpuRequest;
-      podYAML.spec.containers[0].resources.limits.cpu =
-        createFormData.value.cpuRequest;
-    }
-
-    if (createFormData.value.memoryRequest) {
-      podYAML.spec.containers[0].resources.requests.memory =
-        createFormData.value.memoryRequest;
-      podYAML.spec.containers[0].resources.limits.memory =
-        createFormData.value.memoryRequest;
-    }
 
     // 添加 PVC 挂载
     if (createFormData.value.pvc) {
@@ -649,54 +480,54 @@ const fetchPodCodeStatus = async (podName) => {
   return (await client.get(`/_/code-server/{!NAMESPACE}/${podName}`)).json();
 };
 
-const attachCode = async (podName) => {
-  try {
-    selectedPodCodeAttaching.value = true;
-    const response = (
-      await client.post(`/_/code-server/{!NAMESPACE}/${podName}`)
-    ).json();
-    if (response.status === "success") {
-      window.open(
-        `/kube/_/code-server/u-${username}/${podName}/proxy`,
-        "_blank"
-      );
-      selectedPodCodeRunning.value = true;
-    } else {
-      MessagePlugin.error("启动 Code Server 失败");
-      MessagePlugin.error(response.error);
-    }
-    selectedPodCodeAttaching.value = false;
-  } catch (error) {
-    console.error("启动 Code Server 失败:", error);
-    MessagePlugin.error("启动 Code Server 失败");
-  }
-};
+// const attachCode = async (podName) => {
+//   try {
+//     selectedPodCodeAttaching.value = true;
+//     const response = (
+//       await client.post(`/_/code-server/{!NAMESPACE}/${podName}`)
+//     ).json();
+//     if (response.status === "success") {
+//       window.open(
+//         `/kube/_/code-server/u-${username}/${podName}/proxy`,
+//         "_blank"
+//       );
+//       selectedPodCodeRunning.value = true;
+//     } else {
+//       MessagePlugin.error("启动 Code Server 失败");
+//       MessagePlugin.error(response.error);
+//     }
+//     selectedPodCodeAttaching.value = false;
+//   } catch (error) {
+//     console.error("启动 Code Server 失败:", error);
+//     MessagePlugin.error("启动 Code Server 失败");
+//   }
+// };
 
-const detachCode = async (podName) => {
-  try {
-    selectedPodCodeDetaching.value = true;
-    const response = (
-      await client.deleteWithBody(`/_/code-server/{!NAMESPACE}/${podName}`, {
-        gracePeriodSeconds: 0,
-      })
-    ).json();
-    if (response.status === "success") {
-      MessagePlugin.success("关闭 Code Server 成功");
-      selectedPodCodeRunning.value = false;
-    } else {
-      MessagePlugin.error("关闭 Code Server 失败");
-      MessagePlugin.error(response.error);
-    }
-    selectedPodCodeDetaching.value = false;
-  } catch (error) {
-    console.error("关闭 Code Server 失败:", error);
-    MessagePlugin.error("关闭 Code Server 失败");
-  }
-};
+// const detachCode = async (podName) => {
+//   try {
+//     selectedPodCodeDetaching.value = true;
+//     const response = (
+//       await client.deleteWithBody(`/_/code-server/{!NAMESPACE}/${podName}`, {
+//         gracePeriodSeconds: 0,
+//       })
+//     ).json();
+//     if (response.status === "success") {
+//       MessagePlugin.success("关闭 Code Server 成功");
+//       selectedPodCodeRunning.value = false;
+//     } else {
+//       MessagePlugin.error("关闭 Code Server 失败");
+//       MessagePlugin.error(response.error);
+//     }
+//     selectedPodCodeDetaching.value = false;
+//   } catch (error) {
+//     console.error("关闭 Code Server 失败:", error);
+//     MessagePlugin.error("关闭 Code Server 失败");
+//   }
+// };
 
-const openCode = (podName) => {
-  window.open(`/kube/_/code-server/u-${username}/${podName}/proxy`, "_blank");
-};
+// const openCode = (podName) => {
+//   window.open(`/kube/_/code-server/u-${username}/${podName}/proxy`, "_blank");
+// };
 
 const handleMoreTools = async (podInfo) => {
   if (podInfo.status.phase !== "Running") {
@@ -721,7 +552,7 @@ const handleMoreTools = async (podInfo) => {
 onMounted(async () => {
   await client.ensureUsername();
   // opening new window will require this
-  username = client.username;
+  username = client.username!;
   if ("name" in route.query) showCreateDialog();
   router.replace({ ...route, query: {} });
   fetchPods();

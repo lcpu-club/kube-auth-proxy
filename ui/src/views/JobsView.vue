@@ -87,50 +87,6 @@
           </t-select>
         </t-form-item>
 
-        <!-- 容器镜像 -->
-        <t-form-item label="容器镜像" name="image">
-          <t-select
-            v-model="createFormData.image"
-            placeholder="请输入容器镜像"
-            creatable
-            filterable
-          >
-            <t-option
-              v-for="image in images"
-              :key="image"
-              :value="image"
-              :label="image"
-            />
-          </t-select>
-        </t-form-item>
-
-        <t-form-item label="分区" name="architecture">
-          <t-select
-            v-model="createFormData.architecture"
-            placeholder="请选择分区"
-          >
-            <t-option
-              v-for="architecture in availableArchitectures"
-              :key="architecture"
-              :value="architecture"
-              :label="architecture"
-            />
-          </t-select>
-        </t-form-item>
-
-        <!-- 命令 -->
-        <t-form-item label="命令" name="command">
-          <t-input v-model="createFormData.command" placeholder="请输入命令" />
-        </t-form-item>
-
-        <!-- 参数 -->
-        <t-form-item label="参数" name="args">
-          <t-textarea
-            v-model="createFormData.args"
-            placeholder="请输入参数（换行分割）"
-          />
-        </t-form-item>
-
         <!-- 并行数 -->
         <t-form-item label="并行数" name="parallelism">
           <t-input-number v-model="createFormData.parallelism" :min="1" />
@@ -141,93 +97,7 @@
           <t-input-number v-model="createFormData.backoffLimit" :min="0" />
         </t-form-item>
 
-        <!-- PVC 选择 -->
-        <t-form-item label="PVC" name="pvc">
-          <t-select
-            v-model="createFormData.pvc"
-            placeholder="请选择 PVC"
-            clearable
-            filterable
-          >
-            <t-option
-              v-for="pvc in pvcs"
-              :key="pvc.metadata.name"
-              :value="pvc.metadata.name"
-              :label="pvc.metadata.name"
-            />
-          </t-select>
-        </t-form-item>
-
-        <!-- 标签 -->
-        <t-form-item label="标签" name="labels">
-          <t-input
-            v-model="createFormData.labels"
-            placeholder="a=b, c=d（此处写入jobYAML.spec.template.metadata.labels，无需指定 GPU 标签）"
-          />
-        </t-form-item>
-
-        <!-- 挂载路径 -->
-        <t-form-item label="挂载路径" name="mountPath">
-          <t-select
-            v-model="createFormData.mountPath"
-            placeholder="请选择挂载路径"
-            creatable
-            filterable
-          >
-            <t-option value="/root" label="/root" />
-            <t-option value="/data" label="/data" />
-            <t-option value="/shared" label="/shared" />
-          </t-select>
-        </t-form-item>
-
-        <!-- lxcfs.lcpu.dev/inject 开关 -->
-        <t-form-item label="启用 lxcfs" name="lxcfsEnabled">
-          <t-switch v-model="createFormData.lxcfsEnabled" />
-        </t-form-item>
-
-        <!-- ssh-operator.lcpu.dev/inject 开关 -->
-        <t-form-item label="启用 SSH 服务器" name="sshEnabled">
-          <t-switch v-model="createFormData.sshEnabled" />
-        </t-form-item>
-
-        <t-form-item label="RDMA" name="rdma">
-          <t-switch v-model="createFormData.rdma" />
-        </t-form-item>
-
-        <!-- 资源请求和限制 -->
-        <t-form-item label="CPU" name="cpuRequest">
-          <t-input
-            v-model="createFormData.cpuRequest"
-            placeholder="例如：1000m"
-          />
-        </t-form-item>
-
-        <t-form-item label="内存" name="memoryRequest">
-          <t-input
-            v-model="createFormData.memoryRequest"
-            placeholder="例如：1Gi"
-          />
-        </t-form-item>
-
-        <t-form-item label="Nvidia GPU" name="gpuRequest">
-          <t-tooltip
-            :content="nvidiaRequestEnabled ? '' : '分区需要为 x86_amd 或 gpu'"
-          >
-            <t-input-number
-              v-model="createFormData.gpuRequest"
-              :min="0"
-              :disabled="!nvidiaRequestEnabled"
-            />
-          </t-tooltip>
-        </t-form-item>
-
-        <t-form-item label="Ascend910" name="ascend910Request">
-          <t-input-number v-model="createFormData.ascend910Request" :min="0" />
-        </t-form-item>
-
-        <t-form-item label="Ascend310P" name="ascend310PRequest">
-          <t-input-number v-model="createFormData.ascend310PRequest" :min="0" />
-        </t-form-item>
+        <PodOptions :pvcs="pvcs" v-model="createFormData" />
 
         <t-form-item>
           <t-space size="small">
@@ -240,11 +110,12 @@
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted, reactive, computed, watch } from "vue";
+<script setup lang="ts">
+import { ref, onMounted } from "vue";
 import { MessagePlugin } from "tdesign-vue-next";
 import { client } from "@/api/client";
 import { useRouter, useRoute } from "vue-router";
+import PodOptions from "@/components/PodOptions.vue";
 
 let apiRoot = "/apis/batch/v1/namespaces/{!NAMESPACE}";
 
@@ -252,19 +123,8 @@ const router = useRouter();
 
 // Jobs 数据
 const jobs = ref([]);
-const localQueues = ref([]);
+const localQueues = ref<any[]>([]);
 const pvcs = ref([]);
-
-const x86OnlyImages = ref(["intel", "cuda", "aocc"]);
-const armOnlyImages = ref(["hpckit"]);
-const commonImages = ref(["full", "llvm", "gcc", "nvhpc", "julia", "base"]);
-
-const images = computed(() => [
-  ...commonImages.value,
-  ...x86OnlyImages.value,
-  ...armOnlyImages.value,
-  "vanity",
-]);
 
 const route = useRoute();
 const queryString = (key, init = "") =>
@@ -272,7 +132,7 @@ const queryString = (key, init = "") =>
 const queryBoolean = (key, init = false) =>
   typeof route.query[key] === "string" ? route.query[key] === "true" : init;
 const queryNumber = (key, init = 0) =>
-  typeof route.query[key] === "string" && isFinite(route.query[key])
+  typeof route.query[key] === "string" && isFinite(+route.query[key])
     ? +route.query[key]
     : init;
 
@@ -284,7 +144,7 @@ const createFormDataFactory = () => ({
   name: queryString("name"),
   localQueue: queryString("localQueue"),
   image: queryString("image"),
-  architecture: queryString("architecture", "x86_amd"),
+  partition: queryString("partition", "x86_amd"),
   command: queryString("command", "sleep"),
   args: queryString("args", "inf"),
   parallelism: queryNumber("parallelism", 1),
@@ -295,39 +155,18 @@ const createFormDataFactory = () => ({
   lxcfsEnabled: queryBoolean("lxcfsEnabled", false),
   sshEnabled: queryBoolean("sshEnabled", true),
   rdma: queryBoolean("rdma", true),
-  cpuRequest: queryString("cpuRequest"),
-  memoryRequest: queryString("memoryRequest"),
-  gpuRequest: queryNumber("gpuRequest", 0),
-  ascend910Request: queryNumber("ascend910Request", 0),
-  ascend310PRequest: queryNumber("ascend310PRequest", 0),
+  cpuRequest: queryNumber("cpuRequest", 0),
+  memoryRequest: queryNumber("memoryRequest", 0),
+  gpuTag: queryString("gpuTag", undefined),
+  gpuRequest: queryNumber("gpuRequest", undefined),
 });
 const createFormData = ref(createFormDataFactory());
-
-const availableArchitectures = computed(() => {
-  if (createFormData.value.image === "vanity") return ["x86_amd", "x86"];
-  if (commonImages.value.includes(createFormData.value.image))
-    return ["x86_amd", "x86", "arm", "gpu-a800", "gpu-l40", "npu", "npu_inf"];
-  if (x86OnlyImages.value.includes(createFormData.value.image))
-    return ["x86_amd", "x86", "gpu-a800", "gpu-l40"];
-  if (armOnlyImages.value.includes(createFormData.value.image))
-    return ["arm", "npu", "npu_inf"];
-  return ["x86_amd", "x86", "arm", "gpu-a800", "gpu-l40", "npu", "npu_inf"];
-});
-
-watch(availableArchitectures, (newVal) => {
-  if (newVal.includes(createFormData.value.architecture)) return;
-  createFormData.value.architecture = newVal[0];
-});
-
-const nvidiaRequestEnabled = computed(() =>
-  ["gpu-a800", "gpu-l40", "x86_amd"].includes(createFormData.value.architecture)
-);
 
 // 表单验证规则
 const createFormRules = {
   name: [{ required: true, message: "Job 名称不能为空" }],
   image: [{ required: true, message: "容器镜像不能为空" }],
-  architecture: [{ required: true, message: "架构不能为空" }],
+  partition: [{ required: true, message: "分区不能为空" }],
 };
 
 // 表格列配置
@@ -370,9 +209,7 @@ const fetchJobs = async () => {
 const handleDelete = async (jobName) => {
   try {
     // 模拟 API 调用
-    await client.delete(`${apiRoot}/jobs/${jobName}`, {
-      method: "DELETE",
-    });
+    await client.delete(`${apiRoot}/jobs/${jobName}`);
     MessagePlugin.success(`Job ${jobName} 删除成功`);
     fetchJobs(); // 刷新列表
   } catch (error) {
@@ -410,6 +247,7 @@ const handleCreate = async ({ validateResult }) => {
           : {},
       },
       spec: {
+        suspend: false,
         template: {
           metadata: {
             labels: createFormData.value.labels.split(",").reduce((acc, x) => {
@@ -420,18 +258,7 @@ const handleCreate = async ({ validateResult }) => {
           },
           spec: {
             nodeSelector: {
-              ...(["gpu-a800", "gpu-l40"].includes(
-                createFormData.value.architecture
-              )
-                ? {
-                    "nvidia.com/gpu.product":
-                      createFormData.value.architecture === "gpu-a800"
-                        ? "NVIDIA-A800-80GB-PCIe-MIG-2g.20gb-SHARED"
-                        : "NVIDIA-L40-SHARED",
-                  }
-                : {
-                    "hpc.lcpu.dev/partition": createFormData.value.architecture,
-                  }),
+              "hpc.lcpu.dev/partition": createFormData.value.partition,
             },
             containers: [
               {
@@ -441,9 +268,7 @@ const handleCreate = async ({ validateResult }) => {
                     add: ["IPC_LOCK"],
                   },
                 },
-                image: images.value.includes(createFormData.value.image)
-                  ? `crmirror.lcpu.dev/hpcgame/${createFormData.value.image}:latest`
-                  : createFormData.value.image,
+                image: createFormData.value.image,
                 command: createFormData.value.command.split(" "),
                 args: createFormData.value.args
                   .split("\n")
@@ -451,35 +276,31 @@ const handleCreate = async ({ validateResult }) => {
                   .filter((x) => x),
                 resources: {
                   requests: {
-                    "huawei.com/Ascend910":
-                      createFormData.value.ascend910Request,
-                    "huawei.com/Ascend310P":
-                      createFormData.value.ascend310PRequest,
-                    ...(nvidiaRequestEnabled.value
-                      ? {
-                          "nvidia.com/gpu": createFormData.value.gpuRequest,
-                        }
-                      : {}),
+                    cpu: `${createFormData.value.cpuRequest * 1000}m`,
+                    memory: `${createFormData.value.memoryRequest}Gi`,
+                    ...(createFormData.value.gpuTag &&
+                      createFormData.value.gpuRequest && {
+                        [createFormData.value
+                          .gpuTag]: `${createFormData.value.gpuRequest}`,
+                      }),
                   },
                   limits: {
-                    "huawei.com/Ascend910":
-                      createFormData.value.ascend910Request,
-                    "huawei.com/Ascend310P":
-                      createFormData.value.ascend310PRequest,
+                    cpu: `${createFormData.value.cpuRequest * 1000}m`,
+                    memory: `${createFormData.value.memoryRequest}Gi`,
+                    ...(createFormData.value.gpuTag &&
+                      createFormData.value.gpuRequest && {
+                        [createFormData.value
+                          .gpuTag]: `${createFormData.value.gpuRequest}`,
+                      }),
                     "rdma.hpc.lcpu.dev/hca_cx5": createFormData.value.rdma
                       ? 1
                       : 0,
-                    ...(nvidiaRequestEnabled.value
-                      ? {
-                          "nvidia.com/gpu": createFormData.value.gpuRequest,
-                        }
-                      : {}),
                   },
                 },
-                volumeMounts: [],
+                volumeMounts: [] as any[],
               },
             ],
-            volumes: [],
+            volumes: [] as any[],
             restartPolicy: "Never",
           },
         },
@@ -487,20 +308,6 @@ const handleCreate = async ({ validateResult }) => {
         backoffLimit: createFormData.value.backoffLimit,
       },
     };
-
-    if (createFormData.value.cpuRequest) {
-      jobYAML.spec.template.spec.containers[0].resources.requests.cpu =
-        createFormData.value.cpuRequest;
-      jobYAML.spec.template.spec.containers[0].resources.limits.cpu =
-        createFormData.value.cpuRequest;
-    }
-
-    if (createFormData.value.memoryRequest) {
-      jobYAML.spec.template.spec.containers[0].resources.requests.memory =
-        createFormData.value.memoryRequest;
-      jobYAML.spec.template.spec.containers[0].resources.limits.memory =
-        createFormData.value.memoryRequest;
-    }
 
     // 如果用户选择了 PVC 和挂载路径，则添加到 YAML 中
     if (createFormData.value.pvc && createFormData.value.mountPath) {
