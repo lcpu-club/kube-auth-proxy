@@ -4,12 +4,11 @@
   </div>
 </template>
 
-<script setup>
-import { onDeactivated, onMounted, useTemplateRef } from "vue";
+<script setup lang="ts">
+import { onDeactivated, onMounted, onUnmounted, useTemplateRef } from "vue";
 import { useRoute } from "vue-router";
 import { client } from "@/api/client";
 import { useToken } from "@/api/token";
-import { ref } from "vue";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import { WebLinksAddon } from "xterm-addon-web-links";
@@ -23,6 +22,7 @@ const xterm = new Terminal();
 const fitAddon = new FitAddon();
 const webLinksAddon = new WebLinksAddon();
 let ws;
+let heartbeatInterval;
 
 const windowResizeHandler = () => {
   fitAddon.fit();
@@ -38,8 +38,12 @@ xterm.onData((data) => {
   new TextEncoder().encodeInto(data, message.subarray(1));
   try {
     ws.send(message);
-  } catch (error) {
-    xterm.write(`WebSocket error: ${error.message}\n`);
+  } catch (error: any) {
+    if ("message" in error) {
+      xterm.write(`WebSocket error: ${error.message}\n`);
+    } else {
+      xterm.write(`WebSocket error: ${error}\n`);
+    }
     console.log("WebSocket error: ", error);
   }
 });
@@ -62,7 +66,7 @@ onMounted(async () => {
     xterm.write("\n\nWebSocket closed\n");
   };
   window.addEventListener("resize", windowResizeHandler);
-  xterm.open(terminal.value);
+  xterm.open(terminal.value!);
   xterm.loadAddon(fitAddon);
   xterm.loadAddon(webLinksAddon);
   fitAddon.fit();
@@ -70,10 +74,19 @@ onMounted(async () => {
     bidirectional: false,
   });
   xterm.loadAddon(attachAddon);
+
+  heartbeatInterval = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(new Uint8Array(1));
+    }
+  }, 10000);
 });
 
-onDeactivated(() => {
-  ws.close();
+onUnmounted(() => {
+  clearInterval(heartbeatInterval);
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.close();
+  }
   window.removeEventListener("resize", windowResizeHandler);
 });
 </script>
