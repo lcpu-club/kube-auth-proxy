@@ -91,10 +91,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { MessagePlugin } from "tdesign-vue-next";
-import { client } from "@/api/api";
+import { client } from "@/api/client";
 
 // ConfigMap 数据
 const configMaps = ref([]);
