@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { setToken } from '@/api/token';
-import { useRoute, useRouter } from 'vue-router';
+import { setToken } from "@/api/token";
+import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
 const router = useRouter();
 
 if (route.params.token) {
   setToken(route.params.token as string);
-  router.push('/');
+  router.push("/");
 }
 </script>
 

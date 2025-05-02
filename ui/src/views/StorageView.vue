@@ -270,7 +270,7 @@ const getStatusTheme = (phase) => {
 
 // 组件挂载时获取数据
 onMounted(async () => {
-  await client.ensureUsername();
+  if (!(await client.ensureUsername())) return;
   fetchPVCs();
 });
 </script>

@@ -137,11 +137,7 @@ function getImageLabel(image: string) {
   </t-form-item>
 
   <!-- 标签 -->
-  <t-form-item
-    label="标签"
-    name="labels"
-    tips="YAML.metadata.labels"
-  >
+  <t-form-item label="标签" name="labels" tips="YAML.metadata.labels">
     <t-input v-model="model.labels" placeholder="a=b, c=d" />
   </t-form-item>
 

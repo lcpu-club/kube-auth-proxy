@@ -17,7 +17,7 @@ class Client {
   async req(
     path: string,
     opts: RequestInit,
-    ignoreNullUsername = false
+    ignoreNullUsername = false,
   ): Promise<Response> {
     if (!ignoreNullUsername) {
       this.ensureUsername();
@@ -103,8 +103,11 @@ class Client {
   }
 
   async ensureUsername() {
-    if (!getToken()) window.location.href = "../oauth/redirect";
-    if (this.username) return;
+    if (!getToken()) {
+      window.location.href = "../oauth/redirect";
+      return false;
+    }
+    if (this.username) return true;
 
     try {
       const userInfo = await (
@@ -113,13 +116,14 @@ class Client {
           {
             method: "GET",
           },
-          true
+          true,
         )
       ).json();
       this.username = userInfo.username;
     } catch (e) {
       console.error(e);
       window.location.href = "../oauth/redirect";
+      return false;
     }
   }
 }

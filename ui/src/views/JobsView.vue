@@ -180,7 +180,7 @@ const columns = [
 const fetchLocalQueues = async () => {
   try {
     const response = await client.get(
-      "/apis/kueue.x-k8s.io/v1beta1/namespaces/{!NAMESPACE}/localqueues"
+      "/apis/kueue.x-k8s.io/v1beta1/namespaces/{!NAMESPACE}/localqueues",
     );
     const data = await response.json();
     localQueues.value = data.items;
@@ -280,8 +280,8 @@ const handleCreate = async ({ validateResult }) => {
                     memory: `${createFormData.value.memoryRequest}Gi`,
                     ...(createFormData.value.gpuTag &&
                       createFormData.value.gpuRequest && {
-                        [createFormData.value
-                          .gpuTag]: `${createFormData.value.gpuRequest}`,
+                        [createFormData.value.gpuTag]:
+                          `${createFormData.value.gpuRequest}`,
                       }),
                   },
                   limits: {
@@ -289,8 +289,8 @@ const handleCreate = async ({ validateResult }) => {
                     memory: `${createFormData.value.memoryRequest}Gi`,
                     ...(createFormData.value.gpuTag &&
                       createFormData.value.gpuRequest && {
-                        [createFormData.value
-                          .gpuTag]: `${createFormData.value.gpuRequest}`,
+                        [createFormData.value.gpuTag]:
+                          `${createFormData.value.gpuRequest}`,
                       }),
                     "rdma.hpc.lcpu.dev/hca_cx5": createFormData.value.rdma
                       ? 1
@@ -346,7 +346,7 @@ const handleCreate = async ({ validateResult }) => {
 const fetchPVCs = async () => {
   try {
     const response = await client.get(
-      `/api/v1/namespaces/{!NAMESPACE}/persistentvolumeclaims`
+      `/api/v1/namespaces/{!NAMESPACE}/persistentvolumeclaims`,
     );
     const data = await response.json();
     pvcs.value = data.items;
@@ -384,7 +384,7 @@ const getStatusTheme = (status) => {
 
 // 组件挂载时获取数据
 onMounted(async () => {
-  await client.ensureUsername();
+  if (!(await client.ensureUsername())) return;
   if ("name" in route.query) showCreateDialog();
   router.replace({ ...route, query: {} });
   fetchJobs();

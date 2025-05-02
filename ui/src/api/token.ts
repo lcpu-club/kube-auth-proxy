@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { ref } from "vue";
 
 const LOCAL_STORAGE_TOKEN_KEY = "kube-auth-proxy-ui-token";
 
@@ -9,17 +9,17 @@ function loadToken() {
   }
 }
 
-export const token = ref('');
+export const token = ref("");
 export const setToken = (newToken: string) => {
   token.value = newToken;
   localStorage.setItem(LOCAL_STORAGE_TOKEN_KEY, newToken);
 };
 export const clearToken = () => {
-  token.value = '';
+  token.value = "";
   localStorage.removeItem(LOCAL_STORAGE_TOKEN_KEY);
 };
 export const hasToken = () => {
-  return token.value !== '';
+  return token.value !== "";
 };
 export const useToken = () => {
   if (!hasToken()) {
@@ -30,4 +30,4 @@ export const useToken = () => {
 };
 export const getToken = () => {
   return useToken().value;
-}
+};

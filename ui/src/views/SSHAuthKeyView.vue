@@ -180,7 +180,7 @@ const closeCreateDialog = () => {
 
 // 组件挂载时获取用户信息和 SSHAuthorizedKey 列表
 onMounted(async () => {
-  await client.ensureUsername();
+  if (!(await client.ensureUsername())) return;
   fetchSSHAuthorizedKeys();
 });
 </script>

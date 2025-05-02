@@ -62,7 +62,7 @@ const router = createRouter({
       path: "/config/sshkeypair",
       name: "sshkeypair",
       component: () => import("@/views/SSHKeyPairView.vue"),
-    }
+    },
   ],
 });
 

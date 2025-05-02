@@ -232,7 +232,7 @@ const displayKey = (key, type) => {
 
 // 组件挂载时获取用户信息和 SSHKeyPair 列表
 onMounted(async () => {
-  await client.ensureUsername();
+  if (!(await client.ensureUsername())) return;
   fetchSSHKeyPairs();
 });
 </script>

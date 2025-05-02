@@ -6,29 +6,34 @@ import {
   ArrowLeftStartOnRectangleIcon,
   KeyIcon,
 } from "@heroicons/vue/24/outline";
+import { onMounted } from "vue";
 
 const router = useRouter();
-
-if (!getToken()) {
-  window.location.href = "../oauth/redirect";
-}
 let userInfo;
-try {
-  // fixes "Unexpected token 'i', "invalid token " is not valid JSON" caused
-  // by expired auth.
-  userInfo = await (await client.get("/_/whoami")).json();
-} catch {
-  router.replace({ name: "logout" });
-}
+
+onMounted(async () => {
+  if (!getToken()) {
+    console.log("no token");
+    window.location.href = "../oauth/redirect";
+    return;
+  }
+  try {
+    // fixes "Unexpected token 'i', "invalid token " is not valid JSON" caused
+    // by expired auth.
+    userInfo = await (await client.get("/_/whoami")).json();
+  } catch {
+    router.replace({ name: "logout" });
+  }
+});
 </script>
 
 <template>
   <h1 class="page-title">主页</h1>
-  <h2 class="m-0">{{ userInfo.extra.name }}</h2>
+  <h2 class="m-0">{{ userInfo?.extra.name }}</h2>
   <div class="flex gap-2 text-gray text-sm">
-    <span>{{ userInfo.extra.realname }}</span>
-    <span>{{ userInfo.extra.school }}</span>
-    <span>{{ userInfo.extra.studentGrade }}</span>
+    <span>{{ userInfo?.extra.realname }}</span>
+    <span>{{ userInfo?.extra.school }}</span>
+    <span>{{ userInfo?.extra.studentGrade }}</span>
   </div>
   <div class="flex col m-t-4 gap-2">
     <RouterLink :to="{ name: 'logout' }" class="link">

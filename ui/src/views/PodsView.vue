@@ -538,7 +538,7 @@ const handleMoreTools = async (podInfo) => {
   selectedPodContianer.value = podInfo.spec.containers[0].name;
   selectedPod.value = podInfo.metadata.name;
   currentPodContainers.value = podInfo.spec.containers.map(
-    (container) => container.name
+    (container) => container.name,
   );
   // selectedPodCodeStatusLoading.value = true;
   selectContainerDialogVisible.value = true;
@@ -550,7 +550,7 @@ const handleMoreTools = async (podInfo) => {
 
 // 组件挂载时获取数据
 onMounted(async () => {
-  await client.ensureUsername();
+  if (!(await client.ensureUsername())) return;
   // opening new window will require this
   username = client.username!;
   if ("name" in route.query) showCreateDialog();
